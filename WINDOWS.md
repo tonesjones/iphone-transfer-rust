@@ -96,3 +96,4 @@ usually means **Optimize iPhone Storage** is on and some originals are only in i
 | Device found, `DCIM` empty or access denied | Phone locked during the run. Unlock and re-run. |
 | `link.exe not found` during `cargo` | Build Tools missing the C++ workload (step 1.1). |
 | Spike copies a `.JPG` where you expected `.HEIC` | "Keep Originals" is not set (step 1.5). |
+| `existing files are never overwritten` on a second run | The spike already copied that file. Delete it from `C:\photoxfer-spike\` or pass a different `--file`. |

@@ -115,12 +115,13 @@ pub fn import_folder(inbox: &Path, library: &Path) -> anyhow::Result<ImportRepor
             if exists {
                 report.skipped += 1;
             } else {
-                let own_taken = if index == 0 {
+                // Pair files share the primary's date and stem; without a primary hash they
+                // fall back to their own.
+                let file_taken = if stem.is_some() {
                     taken
                 } else {
                     metadata::capture_time(src)
                 };
-                let file_taken = if stem.is_some() { taken } else { own_taken };
                 let own_stem = layout::file_stem(file_taken, &file_hash);
                 let file_stem = stem.as_deref().unwrap_or(&own_stem);
                 let ext = src
