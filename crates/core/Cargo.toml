@@ -1,0 +1,23 @@
+[package]
+name = "photoxfer-core"
+version = "0.1.0"
+edition.workspace = true
+
+[lib]
+name = "photoxfer_core"
+
+[dependencies]
+anyhow = { workspace = true }
+blake3 = { workspace = true }
+chrono = { workspace = true }
+hex = { workspace = true }
+nom-exif = { workspace = true }
+rusqlite = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

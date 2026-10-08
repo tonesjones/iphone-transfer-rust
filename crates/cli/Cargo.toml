@@ -1,0 +1,18 @@
+[package]
+name = "photoxfer-cli"
+version = "0.1.0"
+edition.workspace = true
+
+[[bin]]
+name = "photoxfer"
+path = "src/main.rs"
+
+[dependencies]
+photoxfer-core = { path = "../core" }
+anyhow = { workspace = true }
+clap = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[lints]
+workspace = true
