@@ -7,10 +7,6 @@ edition.workspace = true
 name = "photoxfer"
 path = "src/main.rs"
 
-[[bin]]
-name = "wpd-spike"
-path = "src/bin/wpd-spike.rs"
-
 [dependencies]
 photoxfer-core = { path = "../core" }
 anyhow = { workspace = true }
