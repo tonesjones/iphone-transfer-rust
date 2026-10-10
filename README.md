@@ -14,7 +14,9 @@ Install the launcher shortcut in the repository folder:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-shortcut.ps1
 ```
 
-Double-click **PhotoXfer Backup.lnk** to import from `C:\Users\Owner\iCloudPhotos`, check the import, and archive the library to `C:\Users\Owner\OneDrive\PhotoXfer Archive`. The launcher runs each step in order and stops if one fails. When running `scripts\backup.ps1` directly, override paths with `-Source`, `-Library`, `-Archive`, or `-Executable`; use `-NoPause` for automated runs.
+Double-click **PhotoXfer Backup.lnk** to import from `C:\Users\Owner\iCloudPhotos`, check the import, and archive the library to `C:\Users\Owner\OneDrive\Photo Backups`. The launcher runs each step in order and stops if one fails. When running `scripts\backup.ps1` directly, override paths with `-Source`, `-Library`, `-Archive`, or `-Executable`; use `-NoPause` for automated runs.
+
+The window shows three steps: save photos and videos, check your saved library, and update and check your second copy. **Backup finished successfully** means both copies on this computer passed their checks. The source count can be lower than the saved count because removing a file from iCloud does not remove its backup. The final checklist shows what still needs checking before deleting photos from your phone or iCloud.
 
 Compare the phone's total photo and video count with the imported library, including Live Photos and edited versions. Keep the source files until a full manifest batch has been restored from the cloud archive and checked. Cloud upload is not verified by this launcher, so manual cleanup remains blocked until that restore check succeeds. Items with unknown dates stay unsorted.
 

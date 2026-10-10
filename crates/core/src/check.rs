@@ -11,6 +11,7 @@ use crate::{
 
 #[derive(Debug, Default)]
 pub struct CheckReport {
+    pub verified_library_files: usize,
     /// Source files whose exact bytes are in the library and verified on disk.
     pub safe: Vec<PathBuf>,
     /// Source files the library doesn't have (or whose library copy failed verification).
@@ -43,6 +44,7 @@ pub fn check(source: &Path, library: &Path) -> anyhow::Result<CheckReport> {
         known_paths.insert(path.clone());
         match hash::hash_file(&path) {
             Ok(actual) if actual == expected => {
+                report.verified_library_files += 1;
                 verified.insert(expected);
             }
             Ok(_) => report

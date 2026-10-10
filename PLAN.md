@@ -28,7 +28,7 @@ OneDrive handles hard links poorly.
 
 ## Next checkpoint: needed now
 
-Use `PhotoXfer Backup.lnk` for import, check, then archive. Keep the working library outside OneDrive; the separate archive is `C:\Users\Owner\OneDrive\PhotoXfer Archive`. A local archive result does not prove cloud upload.
+Use `PhotoXfer Backup.lnk` for import, check, then archive. Keep the working library outside OneDrive; the separate archive is `C:\Users\Owner\OneDrive\Photo Backups`. A local archive result does not prove cloud upload.
 
 - [ ] Phone completeness: user reports 33 videos, 5 selfies, 1 Live Photo, 14 screenshots, and no known edited photos. Total items remain unknown. Counts overlap. Verify both original components of the one Live Photo; use an original export if either is absent.
 - [ ] Cloud recovery: confirm upload, then download every file listed in the latest manifest plus the manifest from OneDrive to a separate folder outside OneDrive. Run `photoxfer verify --from <restore> --manifest <manifest>`. Accept: every listed media file and catalog snapshot matches.
@@ -109,7 +109,20 @@ Parked with phase 0 (only needed if USB comes back):
 
 ## Phase 3: GUI and phase 4: Wi-Fi sync
 
-Deferred until the shortcut exposes a concrete usability limitation. Review dependencies and security implications before selecting a GUI toolkit.
+### Next step: desktop backup window
+
+Build a small Windows desktop app that uses the existing verified import, check, and archive functions. Sol owns design, integration, and final review; use tokenomics only for worthwhile bounded delegation. Keep the command-line tool and its shortcut available.
+
+- Use a Rust desktop window with one GUI dependency, `eframe`/`egui`, using only the Windows renderer, fonts, and windowing features needed here. Review the added dependency tree before relying on it. No web server, login integration, or new backup engine.
+- Show a prominent **Back Up Now** button, three progress steps, and separate counts for current source files, saved library files, and files in **Photo Backups**.
+- Run the existing stages sequentially on a background thread so the window stays responsive. Disable repeat starts while a run is active; stop after any failed stage and show an actionable error with expandable technical details.
+- Show green completion only when import, library verification, and local archive verification all succeed. Keep OneDrive cloud recovery and phone completeness as separate, unverified checks before deletion.
+- Provide **Open saved library** and **Open Photo Backups** buttons, readable folder paths, and a separate **Before deleting photos** checklist. Do not add deletion actions.
+- Use the current source/library/archive defaults and support launch-time path overrides for testing. Provide a separate desktop-app shortcut; retain the console shortcut for troubleshooting.
+- Acceptance: a real run reports the correct source/library/archive counts; repeat starts are blocked during work; a missing or damaged file produces a failure rather than a green result; folder buttons open the configured locations; the window remains usable while backing up.
+- Validate pipeline success/failure on disposable libraries, run the existing tests and compiler checks, and inspect the rendered Windows window. Build the release executable and create its shortcut after verification.
+
+Wi-Fi sync remains deferred. Further gallery, tagging, scheduling, and cancellation features are nice later only if needed.
 
 ## Updated run evidence (2026-10-10)
 
