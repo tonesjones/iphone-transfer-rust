@@ -14,14 +14,28 @@ pub enum Event {
     Started(usize),
     /// Step index, a one-line summary, and the file count shown on that step's folder.
     Completed(usize, String, u64),
+    /// Fraction of the whole backup done, from 0.0 to 1.0. Never decreases.
+    Progress(f32),
     Failed(String),
     Finished,
+}
+
+/// Each step's share of the progress bar. The archive step reads every file about twice as
+/// often as the others (see `archive::archive_with_progress`).
+const WEIGHTS: [f32; 3] = [0.25, 0.25, 0.5];
+
+fn overall(step: usize, done: f32) -> Event {
+    let before: f32 = WEIGHTS[..step].iter().sum();
+    Event::Progress(before + WEIGHTS[step] * done.clamp(0.0, 1.0))
 }
 
 pub fn run(folders: &Folders, mut report: impl FnMut(Event)) {
     let result = (|| -> anyhow::Result<()> {
         report(Event::Started(0));
-        let saved = import::import_folder(&folders.source, &folders.library)?;
+        let saved =
+            import::import_folder_with_progress(&folders.source, &folders.library, &mut |done| {
+                report(overall(0, done))
+            })?;
         if saved.failed != 0 || !saved.errors.is_empty() {
             bail!(
                 "Could not save {} source files or folders.\n{}",
@@ -38,7 +52,9 @@ pub fn run(folders: &Folders, mut report: impl FnMut(Event)) {
             saved.found,
         ));
         report(Event::Started(1));
-        let checked = check::check(&folders.source, &folders.library)?;
+        let checked = check::check_with_progress(&folders.source, &folders.library, &mut |done| {
+            report(overall(1, done))
+        })?;
         if !checked.is_clean() {
             let mut problems = checked.library_problems;
             problems.extend(checked.errors);
@@ -69,7 +85,10 @@ pub fn run(folders: &Folders, mut report: impl FnMut(Event)) {
             checked.verified_library_files as u64,
         ));
         report(Event::Started(2));
-        let second = archive::archive(&folders.library, &folders.archive)?;
+        let second =
+            archive::archive_with_progress(&folders.library, &folders.archive, &mut |done| {
+                report(overall(2, done))
+            })?;
         report(Event::Completed(
             2,
             format!(
@@ -120,6 +139,25 @@ mod tests {
             std::fs::read(f.library.join(path)).unwrap(),
             b"photo fixture"
         );
+    }
+
+    #[test]
+    fn progress_rises_to_complete() {
+        let temp = tempfile::tempdir().unwrap();
+        let f = folders(temp.path());
+        std::fs::create_dir(&f.source).unwrap();
+        for name in ["IMG_0001.PNG", "IMG_0002.PNG", "IMG_0003.MOV"] {
+            std::fs::write(f.source.join(name), name).unwrap();
+        }
+        let mut progress = Vec::new();
+        run(&f, |event| {
+            if let Event::Progress(done) = event {
+                progress.push(done);
+            }
+        });
+        assert!(progress.len() > 9);
+        assert!(progress.windows(2).all(|pair| pair[0] <= pair[1]));
+        assert_eq!(progress.last(), Some(&1.0));
     }
 
     #[test]

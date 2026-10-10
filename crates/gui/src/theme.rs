@@ -105,11 +105,13 @@ fn gradient_fill(painter: &Painter, outline: &[Pos2], from: Color32, to: Color32
     painter.add(mesh);
 }
 
-pub fn gradient_disc(painter: &Painter, center: Pos2, radius: f32, from: Color32, to: Color32) {
-    let outline: Vec<Pos2> = (0..96)
-        .map(|i| center + Vec2::angled(i as f32 / 96.0 * TAU) * radius)
-        .collect();
-    gradient_fill(painter, &outline, from, to);
+pub fn gradient_pill(painter: &Painter, rect: Rect, from: Color32, to: Color32) {
+    gradient_fill(
+        painter,
+        &rounded_outline(rect, rect.height() / 2.0),
+        from,
+        to,
+    );
 }
 
 fn rounded_outline(rect: Rect, radius: f32) -> Vec<Pos2> {
@@ -144,26 +146,6 @@ pub fn glow(
     }
 }
 
-/// A spinner arc from `start` (radians, 0 = right, clockwise) sweeping `sweep` radians.
-/// The color fades in from transparent, so a spinning arc reads as a comet tail.
-pub fn comet_arc(
-    painter: &Painter,
-    center: Pos2,
-    radius: f32,
-    start: f32,
-    sweep: f32,
-    stroke: Stroke,
-) {
-    const SEGMENTS: usize = 48;
-    let point = |t: f32| center + Vec2::angled(start + sweep * t) * radius;
-    for i in 0..SEGMENTS {
-        let (a, b) = (i as f32 / SEGMENTS as f32, (i + 1) as f32 / SEGMENTS as f32);
-        let faded = Stroke::new(stroke.width, stroke.color.gamma_multiply(b));
-        painter.line_segment([point(a), point(b)], faded);
-    }
-    painter.circle_filled(point(1.0), stroke.width / 2.0, stroke.color);
-}
-
 pub fn check_mark(painter: &Painter, center: Pos2, size: f32, stroke: Stroke) {
     let points = vec![
         center + Vec2::new(-0.45, 0.02) * size,
@@ -184,6 +166,16 @@ pub fn folder_icon(painter: &Painter, rect: Rect, color: Color32) {
     );
     painter.rect_filled(tab, 2.0, color.gamma_multiply(0.7));
     painter.rect_filled(body, 3.0, color);
+}
+
+pub fn cloud_icon(painter: &Painter, rect: Rect, color: Color32) {
+    let (w, h) = (rect.width(), rect.height());
+    let at = |x: f32, y: f32| rect.left_top() + Vec2::new(x * w, y * h);
+    painter.circle_filled(at(0.3, 0.6), 0.22 * w, color);
+    painter.circle_filled(at(0.55, 0.42), 0.3 * w, color);
+    painter.circle_filled(at(0.78, 0.66), 0.2 * w, color);
+    let base = Rect::from_min_max(at(0.1, 0.6), at(0.95, 0.95));
+    painter.rect_filled(base, 0.17 * w, color);
 }
 
 /// The app mark: a gradient tile with a camera-lens ring.

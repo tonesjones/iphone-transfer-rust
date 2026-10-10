@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod backup;
+mod stage;
 mod theme;
 
 use anyhow::Context;
@@ -11,27 +12,22 @@ use std::{path::PathBuf, sync::mpsc};
 use theme::*;
 
 const SIDEBAR_WIDTH: f32 = 300.0;
-const ORB_RADIUS: f32 = 78.0;
 
 struct Step {
-    title: &'static str,
     hint: &'static str,
     working: &'static str,
 }
 
 const STEPS: [Step; 3] = [
     Step {
-        title: "Save from iCloud",
         hint: "Copy new or missing photos and videos.",
         working: "Saving from iCloud",
     },
     Step {
-        title: "Check saved library",
         hint: "Verify the contents of every saved file.",
         working: "Checking library",
     },
     Step {
-        title: "Check Photo Backups",
         hint: "Update and verify your second copy on this computer.",
         working: "Checking backups",
     },
@@ -65,6 +61,9 @@ struct App {
     close_blocked: bool,
     error: Option<String>,
     folder_error: Option<String>,
+    /// The worker's latest overall progress, and the eased value the progress bar shows.
+    progress: f32,
+    shown_progress: f32,
 }
 
 impl App {
@@ -78,6 +77,8 @@ impl App {
             close_blocked: false,
             error: None,
             folder_error: None,
+            progress: 0.0,
+            shown_progress: 0.0,
         }
     }
 
@@ -89,6 +90,8 @@ impl App {
         self.finished = false;
         self.close_blocked = false;
         self.error = None;
+        self.progress = 0.0;
+        self.shown_progress = 0.0;
         self.running = true;
         let (sender, receiver) = mpsc::channel();
         self.receiver = Some(receiver);
@@ -117,6 +120,7 @@ impl App {
         self.receiver = loop {
             match receiver.try_recv() {
                 Ok(Event::Started(index)) => self.steps[index] = Status::Working,
+                Ok(Event::Progress(done)) => self.progress = done,
                 Ok(Event::Completed(index, text, files)) => {
                     self.steps[index] = Status::Done(text, files)
                 }
@@ -281,223 +285,6 @@ impl App {
         };
         ui.label(RichText::new(title).font(bold(30.0)));
         ui.label(RichText::new(detail).size(15.0).color(detail_color));
-    }
-
-    fn orb(&mut self, ui: &mut egui::Ui) {
-        let size = Vec2::splat(ORB_RADIUS * 2.0 + 48.0);
-        let (rect, response) = ui.allocate_exact_size(size, Sense::click());
-        let response = if self.running {
-            response
-        } else {
-            response.on_hover_cursor(CursorIcon::PointingHand)
-        };
-        let hover = ui
-            .ctx()
-            .animate_bool(response.id, response.hovered() && !self.running);
-        let painter = ui.painter_at(rect);
-        let center = rect.center();
-        let time = ui.input(|i| i.time) as f32;
-        let r = ORB_RADIUS;
-        let label = |painter: &egui::Painter, text: &str, dy: f32, font, color| {
-            painter.text(
-                center + Vec2::new(0.0, dy),
-                Align2::CENTER_CENTER,
-                text,
-                font,
-                color,
-            );
-        };
-
-        if self.running {
-            glow(
-                &painter,
-                center,
-                r,
-                22.0,
-                VIOLET,
-                0.5 + 0.2 * (time * 2.0).sin(),
-            );
-            painter.circle_filled(center, r, CARD);
-            painter.circle_stroke(center, r - 6.0, Stroke::new(5.0, LINE));
-            comet_arc(
-                &painter,
-                center,
-                r - 6.0,
-                time * 3.6,
-                2.2,
-                Stroke::new(5.0, CYAN),
-            );
-            let current = self
-                .steps
-                .iter()
-                .position(|s| matches!(s, Status::Working))
-                .unwrap_or(0);
-            label(
-                &painter,
-                &format!("{} of 3", current + 1),
-                -10.0,
-                bold(24.0),
-                TEXT,
-            );
-            label(
-                &painter,
-                STEPS[current].working,
-                18.0,
-                egui::FontId::proportional(12.5),
-                MUTED,
-            );
-        } else if self.error.is_some() {
-            glow(
-                &painter,
-                center,
-                r,
-                18.0 + 6.0 * hover,
-                ERROR,
-                0.4 + 0.4 * hover,
-            );
-            painter.circle_filled(center, r, CARD.lerp_to_gamma(CARD_HOVER, hover));
-            painter.circle_stroke(center, r - 6.0, Stroke::new(5.0, ERROR));
-            label(&painter, "!", -12.0, bold(40.0), ERROR);
-            label(&painter, "Try again", 24.0, semibold(14.0), TEXT);
-        } else if self.finished {
-            glow(
-                &painter,
-                center,
-                r,
-                18.0 + 6.0 * hover,
-                SUCCESS,
-                0.5 + 0.4 * hover,
-            );
-            painter.circle_filled(center, r, CARD.lerp_to_gamma(CARD_HOVER, hover));
-            painter.circle_stroke(center, r - 6.0, Stroke::new(5.0, SUCCESS));
-            check_mark(
-                &painter,
-                center + Vec2::new(0.0, -12.0),
-                34.0,
-                Stroke::new(5.0, SUCCESS),
-            );
-            label(&painter, "Back up again", 26.0, semibold(14.0), TEXT);
-        } else {
-            let lift = 1.0 + 0.04 * hover;
-            glow(
-                &painter,
-                center,
-                r * lift,
-                20.0 + 10.0 * hover,
-                VIOLET,
-                0.7 + 0.5 * hover,
-            );
-            let (from, to) = (
-                CYAN.lerp_to_gamma(Color32::WHITE, 0.12 * hover),
-                VIOLET.lerp_to_gamma(Color32::WHITE, 0.12 * hover),
-            );
-            gradient_disc(&painter, center, r * lift, from, to);
-            painter.circle_stroke(
-                center,
-                r * lift - 1.0,
-                Stroke::new(1.5, Color32::WHITE.gamma_multiply(0.25)),
-            );
-            label(&painter, "Back Up", -12.0, bold(24.0), Color32::WHITE);
-            label(&painter, "Now", 16.0, bold(24.0), Color32::WHITE);
-        }
-        if response.clicked() && !self.running {
-            self.start();
-        }
-    }
-
-    fn timeline(&self, ui: &mut egui::Ui) {
-        let mut nodes = Vec::new();
-        for (index, step) in self.steps.iter().enumerate() {
-            ui.horizontal(|ui| {
-                let (node, _) = ui.allocate_exact_size(Vec2::splat(30.0), Sense::hover());
-                nodes.push(node.center());
-                self.node(ui, node.center(), index, step);
-                ui.add_space(4.0);
-                ui.vertical(|ui| {
-                    ui.add_space(2.0);
-                    let title_color = if matches!(step, Status::Waiting) && self.running {
-                        MUTED
-                    } else {
-                        TEXT
-                    };
-                    ui.label(
-                        RichText::new(STEPS[index].title)
-                            .font(semibold(16.0))
-                            .color(title_color),
-                    );
-                    let (detail, color) = match step {
-                        Status::Done(text, _) => (text.as_str(), MUTED),
-                        Status::Failed => ("Stopped here. See the details below.", ERROR),
-                        Status::Working => ("Working…", CYAN),
-                        Status::Waiting => (STEPS[index].hint, FAINT),
-                    };
-                    ui.label(RichText::new(detail).size(13.5).color(color));
-                });
-            });
-            ui.add_space(14.0);
-        }
-        let painter = ui.painter();
-        for (pair, step) in nodes.windows(2).zip(&self.steps) {
-            let color = if matches!(step, Status::Done(..)) {
-                SUCCESS.gamma_multiply(0.6)
-            } else {
-                LINE
-            };
-            painter.line_segment(
-                [
-                    pair[0] + Vec2::new(0.0, 18.0),
-                    pair[1] - Vec2::new(0.0, 18.0),
-                ],
-                Stroke::new(2.0, color),
-            );
-        }
-    }
-
-    fn node(&self, ui: &egui::Ui, center: egui::Pos2, index: usize, step: &Status) {
-        let painter = ui.painter();
-        match step {
-            Status::Done(..) => {
-                painter.circle_filled(center, 14.0, SUCCESS.gamma_multiply(0.18));
-                painter.circle_stroke(center, 14.0, Stroke::new(1.5, SUCCESS));
-                check_mark(painter, center, 13.0, Stroke::new(2.2, SUCCESS));
-            }
-            Status::Failed => {
-                painter.circle_filled(center, 14.0, ERROR.gamma_multiply(0.18));
-                painter.circle_stroke(center, 14.0, Stroke::new(1.5, ERROR));
-                painter.text(center, Align2::CENTER_CENTER, "!", bold(16.0), ERROR);
-            }
-            Status::Working => {
-                let time = ui.input(|i| i.time) as f32;
-                glow(
-                    painter,
-                    center,
-                    12.0,
-                    10.0,
-                    CYAN,
-                    0.6 + 0.4 * (time * 4.0).sin(),
-                );
-                painter.circle_filled(center, 14.0, CARD);
-                comet_arc(
-                    painter,
-                    center,
-                    12.0,
-                    time * 5.0,
-                    3.6,
-                    Stroke::new(2.5, CYAN),
-                );
-            }
-            Status::Waiting => {
-                painter.circle_filled(center, 14.0, CARD);
-                painter.circle_stroke(center, 14.0, Stroke::new(1.5, LINE));
-                painter.text(
-                    center,
-                    Align2::CENTER_CENTER,
-                    (index + 1).to_string(),
-                    semibold(13.0),
-                    MUTED,
-                );
-            }
-        }
     }
 
     fn result(&self, ui: &mut egui::Ui) {
@@ -678,6 +465,9 @@ impl eframe::App for App {
         self.poll();
         let ctx = root.ctx().clone();
         if self.running {
+            let dt = ctx.input(|i| i.stable_dt).min(0.1);
+            self.shown_progress +=
+                (self.progress - self.shown_progress) * (1.0 - (-dt * 6.0).exp());
             ctx.request_repaint();
             if ctx.input(|i| i.viewport().close_requested()) {
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
@@ -705,15 +495,8 @@ impl eframe::App for App {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     self.header(ui);
                     ui.add_space(14.0);
-                    ui.horizontal_top(|ui| {
-                        self.orb(ui);
-                        ui.add_space(18.0);
-                        ui.vertical(|ui| {
-                            ui.add_space(26.0);
-                            self.timeline(ui);
-                        });
-                    });
-                    ui.add_space(10.0);
+                    self.stage(ui);
+                    ui.add_space(14.0);
                     self.result(ui);
                     ui.add_space(18.0);
                     Self::checklist(ui);

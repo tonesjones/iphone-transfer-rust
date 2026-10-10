@@ -159,6 +159,14 @@ Desktop redesign (2026-10-10, `claude/desktop-redesign`):
   directly to read the window handle. The `windows` crate gained the `Win32_Graphics_Dwm` feature.
 - [x] Idle, running, success, and damaged-copy failure states inspected in the release build on
   throwaway folders (36 files). 58 tests, clippy, and fmt pass.
+- [x] Animated backup scene replaces the round button. Done when: iCloud Photos, Saved library,
+  and Photo Backups are three nodes; photos fly along the path of the step that copies (import,
+  archive), a scan line sweeps the library during its check, and the button becomes a 0-100%
+  bar fed by real progress.
+- [x] Real progress from core. Done when: `import_folder_with_progress`, `check_with_progress`, and
+  `archive_with_progress` report per-file fractions, the old functions are unchanged wrappers, and
+  a test shows the overall value only rises and ends at 1.0. Step weights 25/25/50 follow how
+  often each step reads every file.
 - [ ] Real run from the desktop shortcut on the real folders (not done by Claude).
 
 ## Updated run evidence (2026-10-10)
