@@ -1,3 +1,4 @@
+pub mod archive;
 pub mod check;
 pub mod db;
 pub mod hash;

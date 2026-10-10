@@ -27,6 +27,26 @@ enum Command {
         #[arg(long = "to", required = true)]
         to: PathBuf,
     },
+    /// Find a saved file by its original name or source path.
+    Find {
+        text: String,
+        #[arg(long)]
+        to: PathBuf,
+    },
+    /// Copy verified media and a database snapshot to a separate archive folder.
+    Archive {
+        #[arg(long = "from")]
+        from: PathBuf,
+        #[arg(long = "to")]
+        to: PathBuf,
+    },
+    /// Verify every file in an archive manifest, including a cloud-restored batch.
+    Verify {
+        #[arg(long = "from")]
+        from: PathBuf,
+        #[arg(long)]
+        manifest: PathBuf,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -57,7 +77,7 @@ fn main() -> anyhow::Result<()> {
         Command::Check { from, to } => {
             let report = photoxfer_core::check::check(&from, &to)?;
             println!(
-                "{} safely in library, {} not in library, {} library problems, {} untracked library files, {} unreadable, ignored {} non-media",
+                "{} source files verified in library, {} not in library, {} library problems, {} untracked library files, {} unreadable, ignored {} non-media",
                 report.safe.len(),
                 report.missing.len(),
                 report.library_problems.len(),
@@ -84,6 +104,31 @@ fn main() -> anyhow::Result<()> {
             {
                 std::process::exit(1);
             }
+        }
+        Command::Find { text, to } => {
+            let db = photoxfer_core::db::Db::open_read_only(&to.join("library.db"))?;
+            let matches = db.find(&text)?;
+            for (original, relative) in &matches {
+                println!("{original}\t{}", to.join(relative).display());
+            }
+            println!("{} matching source references", matches.len());
+        }
+        Command::Archive { from, to } => {
+            let report = photoxfer_core::archive::archive(&from, &to)?;
+            println!(
+                "{} media files verified in local archive; {} newly copied",
+                report.verified, report.copied
+            );
+            println!("Manifest: {}", report.manifest.display());
+            println!(
+                "Cloud upload and restore are not verified. Cleanup remains blocked until phone completeness and a cloud-restored batch are verified."
+            );
+        }
+        Command::Verify { from, manifest } => {
+            let count = photoxfer_core::archive::verify(&from, &manifest)?;
+            println!(
+                "{count} files match the archive manifest. This proves cloud recovery only if --from is a separate download from OneDrive."
+            );
         }
     }
     Ok(())

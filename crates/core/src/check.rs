@@ -32,20 +32,10 @@ pub fn check(source: &Path, library: &Path) -> anyhow::Result<CheckReport> {
     if !db_path.is_file() {
         bail!("{} has no library.db; run import first", library.display());
     }
-    let db = Db::open(&db_path)?;
+    let db = Db::open_read_only(&db_path)?;
     let mut report = CheckReport::default();
 
-    let mut recorded: Vec<(String, String)> = Vec::new();
-    for sql in [
-        "SELECT hash, library_path FROM assets",
-        "SELECT sidecar_hash, library_path FROM sidecars",
-    ] {
-        let mut statement = db.conn.prepare(sql)?;
-        let rows = statement.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
-        for row in rows {
-            recorded.push(row?);
-        }
-    }
+    let recorded = db.recorded_files()?;
     let mut verified = HashSet::new();
     let mut known_paths = HashSet::new();
     for (expected, relative) in recorded {
@@ -65,6 +55,7 @@ pub fn check(source: &Path, library: &Path) -> anyhow::Result<CheckReport> {
     let mut scan = ImportReport::default();
     let mut library_files = Vec::new();
     walk(&library, &db_path, &mut library_files, &mut scan);
+    report.errors.extend(scan.errors);
     report.untracked = library_files
         .into_iter()
         .filter(|path| !known_paths.contains(path))
@@ -76,7 +67,7 @@ pub fn check(source: &Path, library: &Path) -> anyhow::Result<CheckReport> {
         .with_context(|| format!("source {} not found", source.display()))?;
     walk(&source, &library, &mut source_files, &mut scan);
     report.ignored = scan.ignored;
-    report.errors = scan.errors;
+    report.errors.extend(scan.errors);
     for path in source_files {
         match hash::hash_file(&path) {
             Ok(h) if verified.contains(&h) => report.safe.push(path),

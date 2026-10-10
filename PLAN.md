@@ -26,20 +26,15 @@ found every source file in the library with nothing missing or extra. The iCloud
 The library is outside OneDrive on purpose: syncing `library.db` mid-write risks corruption, and
 OneDrive handles hard links poorly.
 
-## Next checkpoint
+## Next checkpoint: needed now
 
-Pick up here.
+Use `PhotoXfer Backup.lnk` for import, check, then archive. Keep the working library outside OneDrive; the separate archive is `C:\Users\Owner\OneDrive\PhotoXfer Archive`. A local archive result does not prove cloud upload.
 
-1. **You: confirm completeness.** Compare the Photos app count (Library → All Photos, bottom of
-   the list) with the iCloud folder's 110 files. Filenames reach IMG_3352, so the phone may hold
-   more; if so, check iCloud Photos is on for the phone and in iCloud for Windows.
-2. **You: spot-check the library** in `C:\Users\Owner\Pictures\photoxfer`, then delete
-   `C:\Users\Owner\Pictures\photoxfer-run1` (an earlier run that also copied two `desktop.ini`
-   files).
-3. **Later: free iCloud space.** Only after the library has proven itself over time, and with a
-   backup of it. Deleting from iCloud also deletes from the phone, so the order is: turn off
-   iCloud Photos on the phone (keeping local copies), then Manage Storage → Photos → Turn Off &
-   Delete. You do this step; it isn't automated.
+- [ ] Phone completeness: user reports 33 videos, 5 selfies, 1 Live Photo, 14 screenshots, and no known edited photos. Total items remain unknown. Counts overlap. Verify both original components of the one Live Photo; use an original export if either is absent.
+- [ ] Cloud recovery: confirm upload, then download every file listed in the latest manifest plus the manifest from OneDrive to a separate folder outside OneDrive. Run `photoxfer verify --from <restore> --manifest <manifest>`. Accept: every listed media file and catalog snapshot matches.
+- [ ] Manual cleanup: selected items only, after phone completeness and cloud recovery checks. No app deletion, whole-library iCloud shutdown, or emptying Recently Deleted.
+
+Phase 1 reliability and the second archive are needed now. Phase 2 recovery/dating and phase 3 GUI are nice later. No new packages: the existing SQLite backup feature is enabled.
 
 Machine state: Rust 1.99 (MSVC) and the `x86_64-pc-windows-gnu` target (winget, 2026-10-08);
 Apple Devices 1.1540 (winget, 2026-10-10). MinGW is not installed, so the GNU-target check covers
@@ -78,10 +73,13 @@ above). Retry only once File Explorer shows `Internal Storage\DCIM`.
   recorded in `library.db`, then confirms each source file has a verified copy. Reports missing
   source files, damaged or deleted library copies, and untracked library files; exits 1 if any.
   Real run 2026-10-10: 110 safely in library, 0 problems, 0.6 s.
-- [ ] `--remove-copied` (later, after the check has been trusted for a while): delete only
-  check-verified files from the iCloud folder, which iCloud syncs as a delete from the phone
-  (Recently Deleted for 30 days). Prove it on one test photo first; needs a backup of the library
-  and a typed confirmation.
+- [x] Repeat imports verify saved bytes before skipping, restore missing copies, and report damaged copies without overwriting. Accept: missing/corrupt-copy regression tests pass.
+- [x] `check` opens SQLite read-only without migrations and includes library scan errors. Accept: a read-only legacy catalog is unchanged; inaccessible scans produce errors.
+- [x] Source names and paths are retained, including aliases for identical bytes. `photoxfer find <text> --to <library>` searches them. Accept: IMG_3353 is searchable after import.
+- [x] Consistent SQLite snapshots before migration and after successful imports. Accept: recovered snapshots pass integrity checks and retain source-name aliases.
+- [x] `photoxfer archive --from <library> --to <archive>` creates independent verified copies, a SQLite snapshot, and a manifest. `verify --from <restore> --manifest <manifest>` checks recovery. Accept: repeat copies zero media; conflicts are preserved; corruption fails; working-file edits do not affect archive bytes.
+- [x] Shortcut runs import, check, archive, stops on failure and waits for Enter. Accept: success/failure scenarios and spaced paths work.
+- [x] Real updated run: import IMG_3353.PNG and verify all current source files. Accept: no missing/damaged/unreadable files and existing media bytes unchanged; counts measured at runtime.
 
 Parked with phase 0 (only needed if USB comes back):
 
@@ -106,12 +104,23 @@ Parked with phase 0 (only needed if USB comes back):
   Accept: deleting `library.db` and running reindex restores every asset row, and adopts library
   files the DB doesn't know about (see the crash gap below).
 - [ ] Dedupe report across the whole library.
-- [ ] **Done when:** the library is fully dated, has no duplicates, and the database rebuilds from
-  disk.
+- [ ] Date suggestions from original filenames, then source timestamps explicitly labeled as estimates; preview moves, manually date only what remains, and keep unknown dates unknown.
+- [ ] **Done when:** known dates are organized, uncertainty is visible, and the file catalog rebuilds from disk. Source names and relationships absent from media require the SQLite snapshots.
 
 ## Phase 3: GUI and phase 4: Wi-Fi sync
 
-Not started. See the plan doc.
+Deferred until the shortcut exposes a concrete usability limitation. Review dependencies and security implications before selecting a GUI toolkit.
+
+## Updated run evidence (2026-10-10)
+
+- Imported IMG_3353.PNG: copied 1, verified/skipped 101. Current library has 111 assets; 31 are undated.
+- Check: 102 current source files verified, zero missing, damaged, untracked, or unreadable.
+- All 110 pre-existing media files retain their SHA-256 hashes.
+- OneDrive local archive: 111 media files verified; snapshot integrity and full manifest verification passed.
+- Latest manifest: `manifests/library-20261010T203720.564827500Z.tsv`.
+- Validation: 56 tests passed, compiler checks clean; truncated manifests fail verification.
+- Cloud upload/restore remains unverified: in-app browser requires OneDrive sign-in. Phone total and both original components of the one Live Photo remain to be confirmed.
+- Sol owned implementation and final review; the launcher was delegated to a runtime-verified Luna session using tokenomics. Savings are unknown.
 
 ## Open decisions
 

@@ -33,6 +33,26 @@ fn imported_files_are_all_safe() {
 }
 
 #[test]
+fn check_does_not_migrate_a_read_only_database() {
+    let (_temp, inbox, library) = imported();
+    let path = library.join("library.db");
+    {
+        let db = Db::open(&path).unwrap();
+        db.conn.execute("DROP TABLE device_seen", []).unwrap();
+    }
+    let before = fs::read(&path).unwrap();
+    let original_permissions = fs::metadata(&path).unwrap().permissions();
+    let mut permissions = original_permissions.clone();
+    permissions.set_readonly(true);
+    fs::set_permissions(&path, permissions).unwrap();
+    let result = check(&inbox, &library);
+    // Restore the attribute so the temporary directory can be removed on Windows.
+    fs::set_permissions(&path, original_permissions).unwrap();
+    assert!(result.is_ok(), "{result:?}");
+    assert_eq!(fs::read(path).unwrap(), before);
+}
+
+#[test]
 fn new_source_file_is_reported_missing() {
     let (_temp, inbox, library) = imported();
     fs::write(
