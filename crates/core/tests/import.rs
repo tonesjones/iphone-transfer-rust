@@ -168,6 +168,19 @@ fn nested_library_and_hidden_entries_are_excluded() {
     assert_eq!((r.found, r.skipped), (1, 1));
 }
 #[test]
+fn non_media_files_are_ignored() {
+    let (_temp, inbox, library) = setup();
+    fs::write(inbox.join("a.jpg"), common::jpeg_with_date()).unwrap();
+    fs::write(inbox.join("desktop.ini"), b"[.ShellClassInfo]").unwrap();
+    let r = import_folder(&inbox, &library).unwrap();
+    assert_eq!((r.found, r.copied, r.ignored), (1, 1, 1));
+    assert!(
+        files(&library)
+            .iter()
+            .all(|p| p.extension().is_none_or(|e| e != "ini"))
+    );
+}
+#[test]
 fn db_insert_failure_removes_published_copy() {
     let (_temp, inbox, library) = setup();
     fs::create_dir(&library).unwrap();

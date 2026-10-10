@@ -1,5 +1,10 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+use tracing::Level;
+use tracing_subscriber::{
+    filter::{LevelFilter, Targets},
+    prelude::*,
+};
 
 #[derive(Parser)]
 struct Cli {
@@ -18,14 +23,22 @@ enum Command {
 }
 
 fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
+    // nom_exif logs every EXIF entry it parses; keep it quiet and send the rest to stderr.
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr))
+        .with(
+            Targets::new()
+                .with_default(Level::WARN)
+                .with_target("nom_exif", LevelFilter::OFF),
+        )
+        .init();
     let cli = Cli::parse();
     match cli.command {
         Command::Import { from, to } => {
             let report = photoxfer_core::import::import_folder(&from, &to)?;
             println!(
-                "found {}, copied {}, skipped {}, failed {}",
-                report.found, report.copied, report.skipped, report.failed
+                "found {}, copied {}, skipped {}, failed {}, ignored {} non-media",
+                report.found, report.copied, report.skipped, report.failed, report.ignored
             );
             for error in report.errors {
                 println!("{error}");

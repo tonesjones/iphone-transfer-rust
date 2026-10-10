@@ -17,6 +17,7 @@ pub struct ImportReport {
     pub copied: u64,
     pub skipped: u64,
     pub failed: u64,
+    pub ignored: u64,
     pub errors: Vec<String>,
 }
 
@@ -47,6 +48,10 @@ fn walk(dir: &Path, library: &Path, files: &mut Vec<PathBuf>, report: &mut Impor
         }
         match entry.file_type() {
             Ok(kind) if kind.is_dir() => walk(&path, library, files, report),
+            // Only photos, videos and sidecars; skips desktop.ini and similar.
+            Ok(kind) if kind.is_file() && metadata::kind_for(&path) == MediaKind::Other => {
+                report.ignored += 1;
+            }
             Ok(kind) if kind.is_file() => files.push(path),
             Ok(_) => {} // Includes symlinks; never follow them.
             Err(error) => failed(report, &path, error),
