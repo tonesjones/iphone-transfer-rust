@@ -32,6 +32,16 @@ fn relative_path(text: &str) -> anyhow::Result<&Path> {
 
 /// Ordinary independent copies; never mirror deletions or overwrite a conflict.
 pub fn archive(library: &Path, destination: &Path) -> anyhow::Result<ArchiveReport> {
+    archive_with_progress(library, destination, &mut |_| {})
+}
+
+/// [`archive`], calling `progress` with the fraction of work done. Weights follow how often each
+/// phase reads every file: the library check twice, copying twice, and the final verify once.
+pub fn archive_with_progress(
+    library: &Path,
+    destination: &Path,
+    progress: &mut dyn FnMut(f32),
+) -> anyhow::Result<ArchiveReport> {
     let library = fs::canonicalize(library)?;
     fs::create_dir_all(destination)?;
     let destination = fs::canonicalize(destination)?;
@@ -39,7 +49,7 @@ pub fn archive(library: &Path, destination: &Path) -> anyhow::Result<ArchiveRepo
         bail!("archive and working library must be separate, non-nested folders");
     }
     let _lock = lock_library(&library)?;
-    let report = check::check(&library, &library)?;
+    let report = check::check_with_progress(&library, &library, &mut |done| progress(done * 0.4))?;
     if !report.is_clean() {
         bail!(
             "library verification failed; run check and resolve its reported problems before archiving"
@@ -50,7 +60,8 @@ pub fn archive(library: &Path, destination: &Path) -> anyhow::Result<ArchiveRepo
     records.sort_by(|a, b| a.1.cmp(&b.1));
     let mut copied = 0;
     let mut manifest = String::from("photoxfer-blake3-v1\n");
-    for (expected, relative) in &records {
+    for (index, (expected, relative)) in records.iter().enumerate() {
+        progress(0.4 + 0.4 * index as f32 / records.len() as f32);
         let path = relative_path(relative)?;
         let source = library.join(path);
         // Recheck against the catalog, including changes by programs outside photoxfer.
@@ -104,7 +115,9 @@ pub fn archive(library: &Path, destination: &Path) -> anyhow::Result<ArchiveRepo
     file.write_all(manifest.as_bytes())?;
     file.sync_all()?;
     drop(file);
-    verify(&destination, &manifest_path)?;
+    verify_with_progress(&destination, &manifest_path, &mut |done| {
+        progress(0.8 + 0.2 * done)
+    })?;
     Ok(ArchiveReport {
         copied,
         verified: records.len(),
@@ -114,6 +127,14 @@ pub fn archive(library: &Path, destination: &Path) -> anyhow::Result<ArchiveRepo
 
 /// Verify a cloud-restored batch without writing to it. Manifest paths are relative to root.
 pub fn verify(root: &Path, manifest: &Path) -> anyhow::Result<usize> {
+    verify_with_progress(root, manifest, &mut |_| {})
+}
+
+fn verify_with_progress(
+    root: &Path,
+    manifest: &Path,
+    progress: &mut dyn FnMut(f32),
+) -> anyhow::Result<usize> {
     let root = fs::canonicalize(root)?;
     let text = fs::read_to_string(manifest)?;
     let mut lines = text.lines();
@@ -130,7 +151,8 @@ pub fn verify(root: &Path, manifest: &Path) -> anyhow::Result<usize> {
         bail!("manifest is incomplete: file count differs");
     }
     let mut count = 0;
-    for line in records {
+    for line in &records {
+        progress(count as f32 / records.len() as f32);
         let fields: Vec<_> = line.splitn(3, '\t').collect();
         if fields.len() != 3 {
             bail!("invalid manifest record");
@@ -150,5 +172,6 @@ pub fn verify(root: &Path, manifest: &Path) -> anyhow::Result<usize> {
     if count == 0 {
         bail!("manifest contains no files");
     }
+    progress(1.0);
     Ok(count)
 }

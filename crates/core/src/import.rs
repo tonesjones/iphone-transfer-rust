@@ -66,6 +66,15 @@ pub(crate) fn walk(
 
 /// Import every file under `inbox` (recursive) into `library` (db at library/library.db).
 pub fn import_folder(inbox: &Path, library: &Path) -> anyhow::Result<ImportReport> {
+    import_folder_with_progress(inbox, library, &mut |_| {})
+}
+
+/// [`import_folder`], calling `progress` with the fraction of found files handled so far.
+pub fn import_folder_with_progress(
+    inbox: &Path,
+    library: &Path,
+    progress: &mut dyn FnMut(f32),
+) -> anyhow::Result<ImportReport> {
     fs::create_dir_all(library)?;
     let library = fs::canonicalize(library)?;
     let _lock = lock_library(&library)?;
@@ -79,7 +88,10 @@ pub fn import_folder(inbox: &Path, library: &Path) -> anyhow::Result<ImportRepor
         Err(error) => failed(&mut report, inbox, error),
     }
     report.found = files.len() as u64;
+    let mut handled = 0;
     for group in pairing::group_files(&files) {
+        progress(handled as f32 / files.len() as f32);
+        handled += 1 + group.live_mov.iter().count() + group.sidecar.iter().count();
         let taken = metadata::capture_time(&group.primary);
         let primary_hash = hash::hash_file(&group.primary);
         let stem = primary_hash
@@ -202,6 +214,7 @@ pub fn import_folder(inbox: &Path, library: &Path) -> anyhow::Result<ImportRepor
             db.link_live_pair(&photo, &mov)?;
         }
     }
+    progress(1.0);
     db.finish_import(
         id,
         report.copied,
