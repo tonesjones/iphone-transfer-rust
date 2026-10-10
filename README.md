@@ -26,9 +26,13 @@ Compare the phone's total photo and video count with the imported library, inclu
 
 The catalog retains every source name encountered. Old names can only be recovered when a matching source file is still available. Repeat imports verify existing copies, restore missing copies, and stop on damaged copies without overwriting them. Catalog snapshots are saved in the library's `.catalog-backups` folder.
 
+Nine files from the initial library have no known original names because they had left the source before name tracking began. Browse their date folders to find them. A damaged working copy currently needs manual restoration from a verified source or archive; keep the damaged file separately and check the replacement before continuing.
+
 ## Verify a cloud restore before cleanup
 
 The archive keeps ordinary media copies, dated SQLite snapshots under `catalog-backups`, and matching manifests under `manifests`. It never mirrors deletions. A successful archive run verifies local copies only.
+
+Verification reads full file contents, so online-only OneDrive files can be downloaded again. Keeping the archive available locally avoids that repeated download. Snapshot retention is not implemented yet; snapshots and manifests accumulate.
 
 1. Confirm OneDrive reports the upload complete and inspect the archive on the OneDrive website.
 2. Download the media listed in the latest manifest, its database snapshot, and that manifest from the website into a separate folder outside OneDrive. Preserve their paths relative to the archive root. This must be a fresh cloud download, not a local folder copy.

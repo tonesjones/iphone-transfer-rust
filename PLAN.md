@@ -138,6 +138,11 @@ Deferred until the shortcut exposes a concrete usability limitation. Review depe
 
 ## Known gaps
 
+- Nine of the initial 111 assets have no original-name record because their source files were already absent when source-name tracking began. `find` cannot locate these by their old names; they remain accessible through their library paths. A matching original source or older export could recover those names.
+- A damaged working copy is preserved and reported, but has no automatic repair command. Follow-up: restore from a verified source or archive, preserve the damaged file separately, and verify the replacement before resuming backup.
+- Archive verification reads every saved file. OneDrive may download online-only files during these checks. Keep full hash verification; keeping the archive available locally avoids repeated downloads at the cost of disk space.
+- Catalog snapshots and archive manifests accumulate. Follow-up: retain the last 10 completed recovery sets, keeping each archive snapshot and its manifest together; never delete media as part of retention.
+- Source paths currently retain Windows' extended-path prefix. This affects presentation only; a later display cleanup can omit it without changing stored paths.
 - A crash between publishing a library file and its DB insert leaves an unrecorded file. A rerun
   copies it again under a `-1` name. `reindex` (phase 2) is the planned cleanup.
 - A hard kill can leave `.partial` files in the library.
