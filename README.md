@@ -1,66 +1,120 @@
 # PhotoXfer
 
-## Desktop backup window
+PhotoXfer saves photos and videos from your iCloud for Windows folder to your computer. It checks the saved files and creates a second copy in your local OneDrive folder. The app does not delete photos or verify that OneDrive has uploaded them.
 
-Build and create the desktop-app shortcut:
+## Back up your photos
+
+If you have not built the app, follow [Set up the app](#set-up-the-app) first.
+
+1. Let iCloud for Windows finish downloading the files you want to save.
+2. Open **PhotoXfer Desktop.lnk** in the repository folder.
+3. Select **Back Up Now**.
+4. Keep the window open until the backup finishes.
+
+The app saves new or missing files, checks the full saved library, and updates and checks the second copy. It stops if a step fails. Open **Problem details** to read the error, and keep your phone and iCloud copies until you resolve it.
+
+**Both local copies passed their checks** means that the files on this computer match their recorded contents. Complete [the phone and cloud checks](#check-your-backups-before-deleting-photos) before deleting photos.
+
+Expand **Your backup folders** to view the locations or open a folder. The defaults are:
+
+| Folder | Location |
+| --- | --- |
+| Read from iCloud | `%USERPROFILE%\iCloudPhotos` |
+| Saved library | `%USERPROFILE%\Pictures\iPhone Backup` |
+| Second copy | `Photo Backups` in your OneDrive folder |
+
+The source count can be lower than the saved count. Removing files from iCloud does not remove their saved copies. Files with capture dates go into year and month folders. Files without known dates stay in `_unsorted`.
+
+## Check your backups before deleting photos
+
+A successful local backup does not prove that every phone item was downloaded or that the cloud copy can be recovered. Complete both checks below before deleting any selected items from Apple Photos.
+
+### Compare with your phone
+
+Compare your phone's photos and videos with the saved library. File counts can differ from item counts because Live Photos contain a still photo and a motion video. Include edited versions you want to preserve.
+
+For each Live Photo, confirm that both original components are saved. If either component is absent from the Windows folder, use an original export from Apple Photos and back up those files before deleting the phone copy.
+
+### Verify a fresh cloud download
+
+The second copy contains media files, database snapshots in `catalog-backups`, and matching recovery file lists in `manifests`. Each `.tsv` recovery file list records the contents expected in that backup batch.
+
+1. Wait for OneDrive to report that the upload is complete.
+2. Open the archive on the OneDrive website.
+3. Download the latest recovery file list, every media file it lists, and its database snapshot into a separate folder outside OneDrive.
+4. Keep the downloaded files at the same paths relative to that folder.
+5. Verify the downloaded batch with the command below.
+
+Replace the example restore folder and manifest filename with your actual download location and recovery file list:
 
 ```powershell
-cargo build --release -p photoxfer-gui
+$restore = 'C:\PhotoXfer-Restore'
+$manifest = Join-Path $restore 'manifests\library-TIMESTAMP.tsv'
+.\target\release\photoxfer.exe verify --from $restore --manifest $manifest
+```
+
+Every listed media file and the database snapshot must pass. A copy made from the local OneDrive folder does not test cloud recovery. If verification fails, keep your phone and iCloud copies and resolve the reported problem.
+
+The app has no deletion command. Do not disable the whole iCloud library or empty **Recently Deleted** as part of this workflow.
+
+## Set up the app
+
+Use Windows with Rust, Cargo, and the Windows build tools installed. Configure iCloud for Windows and OneDrive before your first backup.
+
+Close any open PhotoXfer windows before rebuilding. In PowerShell, open the repository folder and build both programs:
+
+```powershell
+cargo build --release -p photoxfer-gui -p photoxfer-cli
+```
+
+Create the desktop shortcut:
+
+```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-desktop-shortcut.ps1
 ```
 
-Double-click **PhotoXfer Desktop.lnk**, then select **Back Up Now**. The window saves new files, checks the full saved library, and updates and verifies **Photo Backups**. It stays responsive during work and stops at the first failed step. Keep it open until the run finishes. Folder buttons open your source, saved library, and second copy.
+The installer creates **PhotoXfer Desktop.lnk** in the repository folder. You can copy that shortcut to your desktop. It points to the compiled program in this repository, so recreate it if you move the repository.
 
-**Both local copies passed their checks** confirms files on this computer. The separate **Before deleting photos** checklist remains unverified until you complete the phone comparison and fresh cloud-download check described below. The app does not delete files or confirm OneDrive upload.
+The window uses Segoe UI fonts from Windows and falls back to bundled fonts if they are unavailable.
 
-The saved library defaults to `Pictures\iPhone Backup` in your Windows user folder. The second copy defaults to `Photo Backups` in OneDrive. For a different setup, launch `photoxfer-desktop.exe` with `--from`, `--to`, and `--archive` paths. The console shortcut below remains available for troubleshooting.
+### Use different folders
 
-The desktop window uses Segoe UI and Segoe UI Semibold from your Windows installation, with bundled fallback fonts if either is unavailable. Backup folders are under the expandable **Your backup folders** section.
-
-## Windows backup
-
-Build the release executable from the repository folder:
+Launch the desktop program with explicit paths:
 
 ```powershell
-cargo build --release -p photoxfer-cli
+.\target\release\photoxfer-desktop.exe --from 'C:\Photo Inbox' --to 'C:\Saved Photos' --archive 'D:\Photo Backups'
 ```
 
-Install the launcher shortcut in the repository folder:
+These options apply to that launch. The saved library and second-copy folder must be separate, and neither can be inside the other.
+
+## Use the console shortcut
+
+For a text summary or troubleshooting, create the console shortcut:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-shortcut.ps1
 ```
 
-Double-click **PhotoXfer Backup.lnk** to import from `C:\Users\Owner\iCloudPhotos`, check the import, and archive the library to `C:\Users\Owner\OneDrive\Photo Backups`. The launcher runs each step in order and stops if one fails. When running `scripts\backup.ps1` directly, override paths with `-Source`, `-Library`, `-Archive`, or `-Executable`; use `-NoPause` for automated runs.
+Open **PhotoXfer Backup.lnk**. It runs the same backup steps in order, stops on failure, and waits for Enter before closing. **Backup finished successfully** confirms both local copies, subject to the same phone and cloud checks above.
 
-The window shows three steps: save photos and videos, check your saved library, and update and check your second copy. **Backup finished successfully** means both copies on this computer passed their checks. The source count can be lower than the saved count because removing a file from iCloud does not remove its backup. The final checklist shows what still needs checking before deleting photos from your phone or iCloud.
+To change folders when you run `scripts\backup.ps1` directly, pass `-Source`, `-Library`, or `-Archive`. Use `-Executable` to select a different command-line program. Use `-NoPause` for runs that must finish without waiting for Enter.
 
-Compare the phone's total photo and video count with the imported library, including Live Photos and edited versions. Keep the source files until a full manifest batch has been restored from the cloud archive and checked. Cloud upload is not verified by this launcher, so manual cleanup remains blocked until that restore check succeeds. Items with unknown dates stay unsorted.
+## Find a photo by its original filename
 
-## Find an original filename
-
-```powershell
-.\target\release\photoxfer.exe find IMG_3353 --to "C:\Users\Owner\Pictures\iPhone Backup"
-```
-
-The catalog retains every source name encountered. Old names can only be recovered when a matching source file is still available. Repeat imports verify existing copies, restore missing copies, and stop on damaged copies without overwriting them. Catalog snapshots are saved in the library's `.catalog-backups` folder.
-
-Nine files from the initial library have no known original names because they had left the source before name tracking began. Browse their date folders to find them. A damaged working copy currently needs manual restoration from a verified source or archive; keep the damaged file separately and check the replacement before continuing.
-
-## Verify a cloud restore before cleanup
-
-The archive keeps ordinary media copies, dated SQLite snapshots under `catalog-backups`, and matching manifests under `manifests`. It never mirrors deletions. A successful archive run verifies local copies only.
-
-Verification reads full file contents, so online-only OneDrive files can be downloaded again. Keeping the archive available locally avoids that repeated download. Snapshot retention is not implemented yet; snapshots and manifests accumulate.
-
-1. Confirm OneDrive reports the upload complete and inspect the archive on the OneDrive website.
-2. Download the media listed in the latest manifest, its database snapshot, and that manifest from the website into a separate folder outside OneDrive. Preserve their paths relative to the archive root. This must be a fresh cloud download, not a local folder copy.
-3. Verify that downloaded batch:
+From the repository folder, run:
 
 ```powershell
-.\target\release\photoxfer.exe verify --from C:\PhotoXfer-Restore --manifest C:\PhotoXfer-Restore\manifests\library-TIMESTAMP.tsv
+.\target\release\photoxfer.exe find IMG_3353 --to "$env:USERPROFILE\Pictures\iPhone Backup"
 ```
 
-Replace the example paths with your download location and actual manifest filename. Every listed media file and the database snapshot must match. A second folder on the same PC only proves cloud recovery if its files were downloaded from the cloud.
+The catalog retains source filenames encountered during imports. Nine files from the initial library have no recorded original names because they had left the source folder before name tracking began. Browse their date folders to find them. A matching original file can restore the missing name on a later import.
 
-Before deleting any selected items in Apple Photos, confirm coverage on the phone. File counts can differ from photo counts. Check the known Live Photo: preserve and verify both its original still and motion component using an Apple-supported original export if the Windows folder lacks either. There is no deletion command. Do not disable the whole iCloud library or empty Recently Deleted as part of this workflow.
+## Handle missing or damaged copies
+
+Run the backup again to restore a missing saved copy if the matching source file is still available. Repeat imports check existing files before skipping them.
+
+If a saved copy is damaged, the app preserves it and stops. Keep the damaged file separately, restore the saved copy from a verified source or archive, and run the checks again. There is no automatic repair command.
+
+Imports save database snapshots in the library's `.catalog-backups` folder. The second copy also keeps snapshots and recovery file lists. These files accumulate because retention is not implemented.
+
+Archive checks read every file's contents. OneDrive may download online-only files during each check. To avoid repeated downloads, select **Always keep on this device** for **Photo Backups** in OneDrive. Keeping the files locally uses computer disk space.
