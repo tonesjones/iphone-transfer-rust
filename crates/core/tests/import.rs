@@ -48,7 +48,7 @@ fn dated_and_undated_layout_repeat_and_finished_counts() {
     let report = import_folder(&inbox, &library).unwrap();
     assert_eq!((report.found, report.copied, report.failed), (2, 2, 0));
     let path = target(&dated, &library);
-    assert!(path.starts_with(library.join("2026/10")));
+    assert!(path.starts_with(library.join("2026/October")));
     assert_eq!(fs::read(path).unwrap(), fs::read(&dated).unwrap());
     assert!(target(&undated, &library).starts_with(library.join("_unsorted")));
     assert!(target(&undated, &library).is_file());

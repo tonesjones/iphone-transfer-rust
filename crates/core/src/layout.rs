@@ -1,10 +1,10 @@
 use chrono::NaiveDateTime;
 use std::path::{Path, PathBuf};
 
-/// Relative destination dir: "YYYY/MM" or "_unsorted".
+/// Relative destination dir: "YYYY/<Month name>" (e.g. "2026/October") or "_unsorted".
 pub fn dest_dir(taken: Option<NaiveDateTime>) -> PathBuf {
     taken
-        .map(|dt| PathBuf::from(dt.format("%Y/%m").to_string()))
+        .map(|dt| PathBuf::from(dt.format("%Y/%B").to_string()))
         .unwrap_or_else(|| PathBuf::from("_unsorted"))
 }
 
@@ -47,7 +47,7 @@ mod tests {
 
     #[test]
     fn date_layout_and_stem() {
-        assert_eq!(dest_dir(Some(date())), PathBuf::from("2026/10"));
+        assert_eq!(dest_dir(Some(date())), PathBuf::from("2026/October"));
         assert_eq!(dest_dir(None), PathBuf::from("_unsorted"));
         assert_eq!(
             file_stem(Some(date()), "a1b2c3deadbeef"),

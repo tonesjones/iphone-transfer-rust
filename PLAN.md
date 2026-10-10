@@ -93,7 +93,7 @@ Parked with phase 0 (only needed if USB comes back):
 ## Phase 2: organizer
 
 - [x] EXIF/QuickTime date extraction with `_unsorted` as the fallback (pulled into phase 1).
-- [x] File into `YYYY/MM` with `capture-time_shorthash` names (pulled into phase 1).
+- [x] File into `YYYY/<Month name>` (e.g. `2026/October`, changed from `YYYY/MM` on 2026-10-10) with `capture-time_shorthash` names (pulled into phase 1).
 - [ ] `photoxfer reindex` rebuilds the database from the library folder.
   Accept: deleting `library.db` and running reindex restores every asset row, and adopts library
   files the DB doesn't know about (see the crash gap below).
