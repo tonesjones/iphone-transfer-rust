@@ -146,6 +146,7 @@ PR 5 review fixes (2026-10-10), all on `codex/desktop-backup-ui`:
 - R8/R9 Styling cleanup. Done when: colors are named consts, the background is set once, each section is its own method, and `cargo fmt --check` covers the whole file (no line over 100 chars).
 - R10 Dependency audit. Done when: `cargo audit` reports on Cargo.lock. Needs `cargo-audit` installed (RustSec project); waiting on your OK.
 - All: `cargo test --workspace`, `cargo clippy --workspace`, `cargo fmt --check`, and a release build pass.
+- Status (end of session): R1-R9 done in bfe7780. 58 tests, clippy, and fmt pass. A release build launched with `--bogus` showed the "PhotoXfer could not start" dialog. `cargo fmt` leaves no line over 100 characters. R2-R4 are verified by code reading, not by clicking through the window. Next: R10, and rebuild `target\release` after closing the running desktop app (the exe was locked).
 
 ## Updated run evidence (2026-10-10)
 
