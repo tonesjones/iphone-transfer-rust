@@ -124,6 +124,14 @@ Build a small Windows desktop app that uses the existing verified import, check,
 
 Wi-Fi sync remains deferred. Further gallery, tagging, scheduling, and cancellation features are nice later only if needed.
 
+Desktop implementation checkpoint (2026-10-10):
+
+- First version is implemented on `codex/desktop-backup-ui`, separate from the published main branch. The existing console shortcut remains available.
+- Added `eframe` 0.36.2 with default features disabled; enabled fonts and the OpenGL renderer. Reviewed the Windows dependency tree: windowing, rendering, clipboard, and image/font support; no application login or cloud client. This is a substantial transitive dependency addition, so a dedicated dependency security review remains a follow-up before broader distribution.
+- All 58 tests pass, including the desktop pipeline's repeat/missing-copy recovery and damaged-copy failure cases. Formatting and Clippy pass.
+- Inspected the real Windows window and increased text and button sizes. A real button-triggered run verified 35 current source files, 111 saved files, and 111 archive files with zero new media copies. The button is disabled during work; green completion is scoped to local checks.
+- Release executable and separate `PhotoXfer Desktop.lnk` are available in the repository folder. Phone completeness and cloud recovery are still unverified.
+
 ## Updated run evidence (2026-10-10)
 
 - Imported IMG_3353.PNG: copied 1, verified/skipped 101. Current library has 111 assets; 31 are undated.

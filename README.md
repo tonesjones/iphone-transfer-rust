@@ -1,5 +1,20 @@
 # PhotoXfer
 
+## Desktop backup window
+
+Build and create the desktop-app shortcut:
+
+```powershell
+cargo build --release -p photoxfer-gui
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-desktop-shortcut.ps1
+```
+
+Double-click **PhotoXfer Desktop.lnk**, then select **Back Up Now**. The window saves new files, checks the full saved library, and updates and verifies **Photo Backups**. It stays responsive during work and stops at the first failed step. Keep it open until the run finishes. Folder buttons open your source, saved library, and second copy.
+
+**Both local copies passed their checks** confirms files on this computer. The separate **Before deleting photos** checklist remains unverified until you complete the phone comparison and fresh cloud-download check described below. The app does not delete files or confirm OneDrive upload.
+
+Defaults follow your Windows user folder and OneDrive location. For a different setup, launch `photoxfer-desktop.exe` with `--from`, `--to`, and `--archive` paths. The console shortcut below remains available for troubleshooting.
+
 ## Windows backup
 
 Build the release executable from the repository folder:
