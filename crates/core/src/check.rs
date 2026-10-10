@@ -24,6 +24,16 @@ pub struct CheckReport {
     pub errors: Vec<String>,
 }
 
+impl CheckReport {
+    /// True when nothing is missing, changed, unrecorded, or unreadable.
+    pub fn is_clean(&self) -> bool {
+        self.missing.is_empty()
+            && self.library_problems.is_empty()
+            && self.untracked.is_empty()
+            && self.errors.is_empty()
+    }
+}
+
 /// Read-only: re-hashes every library file recorded in library.db, then confirms each media
 /// file under `source` has a verified copy. Never writes to the source or the library.
 pub fn check(source: &Path, library: &Path) -> anyhow::Result<CheckReport> {

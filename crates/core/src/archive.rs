@@ -40,11 +40,7 @@ pub fn archive(library: &Path, destination: &Path) -> anyhow::Result<ArchiveRepo
     }
     let _lock = lock_library(&library)?;
     let report = check::check(&library, &library)?;
-    if !report.missing.is_empty()
-        || !report.library_problems.is_empty()
-        || !report.untracked.is_empty()
-        || !report.errors.is_empty()
-    {
+    if !report.is_clean() {
         bail!(
             "library verification failed; run check and resolve its reported problems before archiving"
         );

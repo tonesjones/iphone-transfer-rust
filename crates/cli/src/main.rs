@@ -93,10 +93,7 @@ fn main() -> anyhow::Result<()> {
                 "Source folder: {} files have matching saved copies.",
                 report.safe.len()
             );
-            let clean = report.missing.is_empty()
-                && report.library_problems.is_empty()
-                && report.untracked.is_empty()
-                && report.errors.is_empty();
+            let clean = report.is_clean();
             if clean {
                 println!("No missing, changed, unrecorded, or unreadable files found.");
             } else {

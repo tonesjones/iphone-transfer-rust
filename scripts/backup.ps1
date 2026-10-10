@@ -1,7 +1,7 @@
 param(
-    [string]$Source = 'C:\Users\Owner\iCloudPhotos',
-    [string]$Library = 'C:\Users\Owner\Pictures\photoxfer',
-    [string]$Archive = 'C:\Users\Owner\OneDrive\Photo Backups',
+    [string]$Source = (Join-Path $env:USERPROFILE 'iCloudPhotos'),
+    [string]$Library = (Join-Path $env:USERPROFILE 'Pictures\iPhone Backup'),
+    [string]$Archive = (Join-Path $(if ($env:OneDrive) { $env:OneDrive } else { Join-Path $env:USERPROFILE 'OneDrive' }) 'Photo Backups'),
     [string]$Executable = (Join-Path (Split-Path -Parent $PSScriptRoot) 'target\release\photoxfer.exe'),
     [switch]$NoPause
 )

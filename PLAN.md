@@ -16,7 +16,7 @@ got `GetValues(s10003)` → `0x80042008`). iCloud for Windows already mirrors th
 `C:\Users\Owner\iCloudPhotos`, so the source is now that folder:
 
 ```powershell
-photoxfer import --from C:\Users\Owner\iCloudPhotos --to C:\Users\Owner\Pictures\photoxfer
+photoxfer import --from C:\Users\Owner\iCloudPhotos --to "C:\Users\Owner\Pictures\iPhone Backup"
 ```
 
 Done on 2026-10-10: all 110 iCloud files imported, a re-run copied 0, and a SHA-256 cross-check
@@ -124,6 +124,30 @@ Build a small Windows desktop app that uses the existing verified import, check,
 
 Wi-Fi sync remains deferred. Further gallery, tagging, scheduling, and cancellation features are nice later only if needed.
 
+Desktop implementation checkpoint (2026-10-10):
+
+- First version is implemented on `codex/desktop-backup-ui`, separate from the published main branch. The existing console shortcut remains available.
+- Added `eframe` 0.36.2 with default features disabled; enabled fonts and the OpenGL renderer. Reviewed the Windows dependency tree: windowing, rendering, clipboard, and image/font support; no application login or cloud client. This is a substantial transitive dependency addition, so a dedicated dependency security review remains a follow-up before broader distribution.
+- All 58 tests pass, including the desktop pipeline's repeat/missing-copy recovery and damaged-copy failure cases. Formatting and Clippy pass.
+- Inspected the real Windows window and increased text and button sizes. A real button-triggered run verified 35 current source files, 111 saved files, and 111 archive files with zero new media copies. The button is disabled during work; green completion is scoped to local checks.
+- Release executable and separate `PhotoXfer Desktop.lnk` are available in the repository folder. Phone completeness and cloud recovery are still unverified.
+- Styling refinement: Windows Segoe UI and Semibold fonts with fallback, light background, consistent bordered progress cards, distinct success/error panels, and expandable folder paths. Inspected the rebuilt Windows window; no added dependencies or redistributed system fonts.
+- Saved library renamed to `Pictures\iPhone Backup`; app and console defaults updated together. All 111 files verified before and after the rename, and the catalog hash was unchanged. The full console workflow verified 35 source files and both 111-file local copies with no new media copies.
+
+PR 5 review fixes (2026-10-10), all on `codex/desktop-backup-ui`:
+
+- R1 Startup failure is visible. Done when: a `run_native` or default-folder error shows a Windows message box in release builds; no new crates in Cargo.lock.
+- R2 Folder-button errors are separate from backup errors. Done when: a folder error shows under the folders section and never replaces the green success panel or shows "Backup needs attention".
+- R3 Worker crash marks the running step failed. Done when: `Event::Failed` and a disconnected channel both go through one function that turns every `Working` step into `Failed`.
+- R4 A blocked close gives feedback. Done when: closing during a run shows "still running" text in the status area instead of doing nothing.
+- R5 One set of default folders. Done when: backup.ps1 and the desktop app both derive defaults from `USERPROFILE` and `OneDrive`, and a missing `USERPROFILE` is an error, not a relative path.
+- R6 Import failure always explains itself. Done when: the message includes the failed count.
+- R7 `CheckReport::is_clean()` replaces the four-field check in cli, archive, gui, and tests.
+- R8/R9 Styling cleanup. Done when: colors are named consts, the background is set once, each section is its own method, and `cargo fmt --check` covers the whole file (no line over 100 chars).
+- R10 Dependency audit. Done when: `cargo audit` reports on Cargo.lock. Needs `cargo-audit` installed (RustSec project); waiting on your OK.
+- All: `cargo test --workspace`, `cargo clippy --workspace`, `cargo fmt --check`, and a release build pass.
+- Status (end of session): R1-R9 done in bfe7780. 58 tests, clippy, and fmt pass. A release build launched with `--bogus` showed the "PhotoXfer could not start" dialog. `cargo fmt` leaves no line over 100 characters. R2-R4 are verified by code reading, not by clicking through the window. Next: R10, and rebuild `target\release` after closing the running desktop app (the exe was locked).
+
 ## Updated run evidence (2026-10-10)
 
 - Imported IMG_3353.PNG: copied 1, verified/skipped 101. Current library has 111 assets; 31 are undated.
@@ -143,7 +167,7 @@ Wi-Fi sync remains deferred. Further gallery, tagging, scheduling, and cancellat
 - **Where device import lives.** Proposed: `crates/cli` depends on both `photoxfer-core` and
   `photoxfer-wpd`, and core gets a source-agnostic import entry point that takes a reader per file.
   This keeps core free of Windows code.
-- **Default library location.** Decided 2026-10-10: `C:\Users\Owner\Pictures\photoxfer`. `--to`
+- **Default library location.** Decided 2026-10-10: `C:\Users\Owner\Pictures\iPhone Backup`. `--to`
   is still required on the command line.
 - **Deleting from the phone or iCloud after import.** Wanted eventually, once the library has
   been validated over time. Not automated: the iCloud folder is a two-way sync, so deleting there
