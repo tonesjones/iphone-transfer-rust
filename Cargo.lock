@@ -1852,6 +1852,7 @@ dependencies = [
  "clap",
  "eframe",
  "photoxfer-core",
+ "raw-window-handle",
  "tempfile",
  "windows",
 ]

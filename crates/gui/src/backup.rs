@@ -12,7 +12,8 @@ pub struct Folders {
 
 pub enum Event {
     Started(usize),
-    Completed(usize, String),
+    /// Step index, a one-line summary, and the file count shown on that step's folder.
+    Completed(usize, String, u64),
     Failed(String),
     Finished,
 }
@@ -31,9 +32,10 @@ pub fn run(folders: &Folders, mut report: impl FnMut(Event)) {
         report(Event::Completed(
             0,
             format!(
-                "{} source files · {} newly saved · {} already saved",
-                saved.found, saved.copied, saved.skipped
+                "{} newly saved · {} already saved",
+                saved.copied, saved.skipped
             ),
+            saved.found,
         ));
         report(Event::Started(1));
         let checked = check::check(&folders.source, &folders.library)?;
@@ -60,19 +62,21 @@ pub fn run(folders: &Folders, mut report: impl FnMut(Event)) {
         report(Event::Completed(
             1,
             format!(
-                "{} saved files verified · {} current source files covered",
+                "{} files verified · covers all {} source files",
                 checked.verified_library_files,
                 checked.safe.len()
             ),
+            checked.verified_library_files as u64,
         ));
         report(Event::Started(2));
         let second = archive::archive(&folders.library, &folders.archive)?;
         report(Event::Completed(
             2,
             format!(
-                "{} files verified in Photo Backups · {} newly copied",
+                "{} files verified · {} newly copied",
                 second.verified, second.copied
             ),
+            second.verified as u64,
         ));
         Ok(())
     })();

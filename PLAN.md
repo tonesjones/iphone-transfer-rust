@@ -148,6 +148,19 @@ PR 5 review fixes (2026-10-10), all on `codex/desktop-backup-ui`:
 - All: `cargo test --workspace`, `cargo clippy --workspace`, `cargo fmt --check`, and a release build pass.
 - Status (end of session): R1-R9 done in bfe7780. 58 tests, clippy, and fmt pass. A release build launched with `--bogus` showed the "PhotoXfer could not start" dialog. `cargo fmt` leaves no line over 100 characters. R2-R4 are verified by code reading, not by clicking through the window. Next: R10, and rebuild `target\release` after closing the running desktop app (the exe was locked).
 
+Desktop redesign (2026-10-10, `claude/desktop-redesign`):
+
+- [x] Folders always visible. Done when: at the default 980x660 size, all three folders show in a
+  left sidebar with their path and last-run file count, and a click opens File Explorer. No
+  expanding or scrolling needed.
+- [x] Custom dark theme. Done when: dark title bar (DWM), gradient Back Up button with hover glow,
+  a spinning ring while running, and green-check and red-retry states; step timeline beside it.
+- [x] No new crates. `raw-window-handle` was already in Cargo.lock through eframe; it's now named
+  directly to read the window handle. The `windows` crate gained the `Win32_Graphics_Dwm` feature.
+- [x] Idle, running, success, and damaged-copy failure states inspected in the release build on
+  throwaway folders (36 files). 58 tests, clippy, and fmt pass.
+- [ ] Real run from the desktop shortcut on the real folders (not done by Claude).
+
 ## Updated run evidence (2026-10-10)
 
 - Imported IMG_3353.PNG: copied 1, verified/skipped 101. Current library has 111 assets; 31 are undated.
