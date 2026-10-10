@@ -1,41 +1,39 @@
 param(
     [string]$Source = 'C:\Users\Owner\iCloudPhotos',
     [string]$Library = 'C:\Users\Owner\Pictures\photoxfer',
-    [string]$Archive = 'C:\Users\Owner\OneDrive\PhotoXfer Archive',
+    [string]$Archive = 'C:\Users\Owner\OneDrive\Photo Backups',
     [string]$Executable = (Join-Path (Split-Path -Parent $PSScriptRoot) 'target\release\photoxfer.exe'),
     [switch]$NoPause
 )
 
 $ErrorActionPreference = 'Stop'
 $steps = @(
-    [pscustomobject]@{ Name = 'Import'; Arguments = @('import', '--from', $Source, '--to', $Library) },
-    [pscustomobject]@{ Name = 'Check'; Arguments = @('check', '--from', $Source, '--to', $Library) },
-    [pscustomobject]@{ Name = 'Archive'; Arguments = @('archive', '--from', $Library, '--to', $Archive) }
+    [pscustomobject]@{ Name = 'Save photos and videos'; Arguments = @('import', '--from', $Source, '--to', $Library) },
+    [pscustomobject]@{ Name = 'Check your saved library'; Arguments = @('check', '--from', $Source, '--to', $Library) },
+    [pscustomobject]@{ Name = 'Update and check your second copy'; Arguments = @('archive', '--from', $Library, '--to', $Archive) }
 )
 
 $exitCode = 0
-$completed = [System.Collections.Generic.List[string]]::new()
-Write-Host 'PhotoXfer backup'
-Write-Host "Source:  $Source"
-Write-Host "Library: $Library"
-Write-Host "Archive: $Archive"
-Write-Host "Program: $Executable"
+Write-Host 'Photo backup'
+Write-Host "Read photos from: $Source"
+Write-Host "Saved library:    $Library"
+Write-Host "Second copy:      $Archive"
 
 try {
     if (-not (Test-Path -LiteralPath $Executable -PathType Leaf)) {
         throw "PhotoXfer executable was not found: $Executable"
     }
-    foreach ($step in $steps) {
-        Write-Host "`n--- $($step.Name) ---"
+    for ($stepIndex = 0; $stepIndex -lt $steps.Count; $stepIndex++) {
+        $step = $steps[$stepIndex]
+        Write-Host "`n$($stepIndex + 1) of 3: $($step.Name)"
         $arguments = $step.Arguments
         & $Executable @arguments
         $stepExitCode = $LASTEXITCODE
         if ($stepExitCode -ne 0) {
-            Write-Host "$($step.Name) failed with exit code $stepExitCode. Later steps were skipped." -ForegroundColor Red
+            Write-Host 'This step failed. The remaining steps did not run.' -ForegroundColor Red
             $exitCode = $stepExitCode
             break
         }
-        $completed.Add($step.Name)
     }
 
 } catch {
@@ -43,9 +41,17 @@ try {
     $exitCode = 1
 }
 
-Write-Host "`nSummary: $($completed -join ', ') completed."
-Write-Host 'Cloud upload is not yet verified; keep the source files.' -ForegroundColor Yellow
-Write-Host 'Cleanup remains blocked until phone completeness (including Live Photos) and a full cloud-restored manifest batch are verified.' -ForegroundColor Yellow
+if ($exitCode -eq 0) {
+    Write-Host "`nBackup finished successfully. Both local copies passed their checks." -ForegroundColor Green
+    Write-Host 'Files removed from iCloud are still kept in your saved library and second copy.'
+    Write-Host "`nBefore deleting photos from your phone or iCloud:" -ForegroundColor Yellow
+    Write-Host '1. Confirm every photo you want to keep is saved, including both parts of any Live Photos.'
+    Write-Host '2. Let OneDrive finish uploading, then download and verify a separate copy from OneDrive.'
+    Write-Host 'This run has not completed those two checks. Keep your phone/iCloud copies until they are done.'
+} else {
+    Write-Host "`nBackup did not finish. Keep your phone/iCloud copies." -ForegroundColor Red
+    Write-Host 'Read the error above and resolve it before running the backup again.'
+}
 if (-not $NoPause) {
     [void](Read-Host 'Press Enter to close')
 }
