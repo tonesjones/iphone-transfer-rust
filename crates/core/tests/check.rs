@@ -27,8 +27,7 @@ fn imported_files_are_all_safe() {
     let (_temp, inbox, library) = imported();
     let r = check(&inbox, &library).unwrap();
     assert_eq!(r.safe.len(), 2);
-    assert!(r.missing.is_empty() && r.library_problems.is_empty() && r.untracked.is_empty());
-    assert!(r.errors.is_empty());
+    assert!(r.is_clean());
     assert_eq!(r.ignored, 1);
 }
 

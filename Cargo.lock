@@ -1853,6 +1853,7 @@ dependencies = [
  "eframe",
  "photoxfer-core",
  "tempfile",
+ "windows",
 ]
 
 [[package]]

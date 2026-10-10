@@ -23,7 +23,8 @@ pub fn run(folders: &Folders, mut report: impl FnMut(Event)) {
         let saved = import::import_folder(&folders.source, &folders.library)?;
         if saved.failed != 0 || !saved.errors.is_empty() {
             bail!(
-                "Could not save every source file.\n{}",
+                "Could not save {} source files or folders.\n{}",
+                saved.failed.max(saved.errors.len() as u64),
                 saved.errors.join("\n")
             );
         }
@@ -36,11 +37,7 @@ pub fn run(folders: &Folders, mut report: impl FnMut(Event)) {
         ));
         report(Event::Started(1));
         let checked = check::check(&folders.source, &folders.library)?;
-        if !checked.missing.is_empty()
-            || !checked.library_problems.is_empty()
-            || !checked.untracked.is_empty()
-            || !checked.errors.is_empty()
-        {
+        if !checked.is_clean() {
             let mut problems = checked.library_problems;
             problems.extend(checked.errors);
             problems.extend(

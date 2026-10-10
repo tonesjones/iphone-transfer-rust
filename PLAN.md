@@ -134,6 +134,19 @@ Desktop implementation checkpoint (2026-10-10):
 - Styling refinement: Windows Segoe UI and Semibold fonts with fallback, light background, consistent bordered progress cards, distinct success/error panels, and expandable folder paths. Inspected the rebuilt Windows window; no added dependencies or redistributed system fonts.
 - Saved library renamed to `Pictures\iPhone Backup`; app and console defaults updated together. All 111 files verified before and after the rename, and the catalog hash was unchanged. The full console workflow verified 35 source files and both 111-file local copies with no new media copies.
 
+PR 5 review fixes (2026-10-10), all on `codex/desktop-backup-ui`:
+
+- R1 Startup failure is visible. Done when: a `run_native` or default-folder error shows a Windows message box in release builds; no new crates in Cargo.lock.
+- R2 Folder-button errors are separate from backup errors. Done when: a folder error shows under the folders section and never replaces the green success panel or shows "Backup needs attention".
+- R3 Worker crash marks the running step failed. Done when: `Event::Failed` and a disconnected channel both go through one function that turns every `Working` step into `Failed`.
+- R4 A blocked close gives feedback. Done when: closing during a run shows "still running" text in the status area instead of doing nothing.
+- R5 One set of default folders. Done when: backup.ps1 and the desktop app both derive defaults from `USERPROFILE` and `OneDrive`, and a missing `USERPROFILE` is an error, not a relative path.
+- R6 Import failure always explains itself. Done when: the message includes the failed count.
+- R7 `CheckReport::is_clean()` replaces the four-field check in cli, archive, gui, and tests.
+- R8/R9 Styling cleanup. Done when: colors are named consts, the background is set once, each section is its own method, and `cargo fmt --check` covers the whole file (no line over 100 chars).
+- R10 Dependency audit. Done when: `cargo audit` reports on Cargo.lock. Needs `cargo-audit` installed (RustSec project); waiting on your OK.
+- All: `cargo test --workspace`, `cargo clippy --workspace`, `cargo fmt --check`, and a release build pass.
+
 ## Updated run evidence (2026-10-10)
 
 - Imported IMG_3353.PNG: copied 1, verified/skipped 101. Current library has 111 assets; 31 are undated.
