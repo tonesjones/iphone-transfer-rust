@@ -74,6 +74,14 @@ above). Retry only once File Explorer shows `Internal Storage\DCIM`.
 - [x] Non-media files (`desktop.ini` and similar) are ignored and counted, not copied.
 - [x] Quiet output: one summary line; `nom_exif` logging is off and other logs go to stderr.
 - [x] Real run on the iCloud folder (110 files, re-run copies 0, SHA-256 cross-check clean).
+- [x] `photoxfer check --from <source> --to <library>`: read-only. Re-hashes every library file
+  recorded in `library.db`, then confirms each source file has a verified copy. Reports missing
+  source files, damaged or deleted library copies, and untracked library files; exits 1 if any.
+  Real run 2026-10-10: 110 safely in library, 0 problems, 0.6 s.
+- [ ] `--remove-copied` (later, after the check has been trusted for a while): delete only
+  check-verified files from the iCloud folder, which iCloud syncs as a delete from the phone
+  (Recently Deleted for 30 days). Prove it on one test photo first; needs a backup of the library
+  and a typed confirmation.
 
 Parked with phase 0 (only needed if USB comes back):
 

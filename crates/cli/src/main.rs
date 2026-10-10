@@ -20,6 +20,13 @@ enum Command {
         #[arg(long = "to", required = true)]
         to: PathBuf,
     },
+    /// Confirm every media file in --from has a verified copy in the library. Read-only.
+    Check {
+        #[arg(long = "from", required = true)]
+        from: PathBuf,
+        #[arg(long = "to", required = true)]
+        to: PathBuf,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -44,6 +51,37 @@ fn main() -> anyhow::Result<()> {
                 println!("{error}");
             }
             if report.failed > 0 {
+                std::process::exit(1);
+            }
+        }
+        Command::Check { from, to } => {
+            let report = photoxfer_core::check::check(&from, &to)?;
+            println!(
+                "{} safely in library, {} not in library, {} library problems, {} untracked library files, {} unreadable, ignored {} non-media",
+                report.safe.len(),
+                report.missing.len(),
+                report.library_problems.len(),
+                report.untracked.len(),
+                report.errors.len(),
+                report.ignored
+            );
+            for path in &report.missing {
+                println!("not in library: {}", path.display());
+            }
+            for problem in &report.library_problems {
+                println!("library problem: {problem}");
+            }
+            for path in &report.untracked {
+                println!("untracked: {}", path.display());
+            }
+            for error in &report.errors {
+                println!("unreadable: {error}");
+            }
+            if !(report.missing.is_empty()
+                && report.library_problems.is_empty()
+                && report.untracked.is_empty()
+                && report.errors.is_empty())
+            {
                 std::process::exit(1);
             }
         }

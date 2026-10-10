@@ -26,7 +26,12 @@ fn failed(report: &mut ImportReport, path: &Path, error: impl std::fmt::Display)
     report.errors.push(format!("{}: {error}", path.display()));
 }
 
-fn walk(dir: &Path, library: &Path, files: &mut Vec<PathBuf>, report: &mut ImportReport) {
+pub(crate) fn walk(
+    dir: &Path,
+    library: &Path,
+    files: &mut Vec<PathBuf>,
+    report: &mut ImportReport,
+) {
     let entries = match fs::read_dir(dir) {
         Ok(entries) => entries,
         Err(error) => {
