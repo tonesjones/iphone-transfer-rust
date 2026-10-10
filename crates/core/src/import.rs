@@ -26,7 +26,12 @@ fn failed(report: &mut ImportReport, path: &Path, error: impl std::fmt::Display)
     report.errors.push(format!("{}: {error}", path.display()));
 }
 
-fn walk(dir: &Path, library: &Path, files: &mut Vec<PathBuf>, report: &mut ImportReport) {
+pub(crate) fn walk(
+    dir: &Path,
+    library: &Path,
+    files: &mut Vec<PathBuf>,
+    report: &mut ImportReport,
+) {
     let entries = match fs::read_dir(dir) {
         Ok(entries) => entries,
         Err(error) => {
@@ -63,6 +68,7 @@ fn walk(dir: &Path, library: &Path, files: &mut Vec<PathBuf>, report: &mut Impor
 pub fn import_folder(inbox: &Path, library: &Path) -> anyhow::Result<ImportReport> {
     fs::create_dir_all(library)?;
     let library = fs::canonicalize(library)?;
+    let _lock = lock_library(&library)?;
     let db = Db::open(&library.join("library.db"))?;
     let id = db.begin_import(&inbox.display().to_string())?;
     let mut report = ImportReport::default();
@@ -108,17 +114,30 @@ pub fn import_folder(inbox: &Path, library: &Path) -> anyhow::Result<ImportRepor
             let sidecar = kind == MediaKind::Sidecar;
             // A sidecar with no primary in the library is stored as its own asset, since
             // sidecars.asset_hash must reference an asset.
-            let exists = if sidecar {
-                db.conn.query_row(
-                    "SELECT EXISTS(SELECT 1 FROM sidecars WHERE sidecar_hash=?1)",
-                    [&file_hash],
-                    |r| r.get::<_, bool>(0),
-                )? || db.has_asset(&file_hash)?
-            } else {
-                db.has_asset(&file_hash)?
-            };
-            if exists {
-                report.skipped += 1;
+            if let Some(relative) = db.stored_path(&file_hash)? {
+                let saved = library.join(relative);
+                match hash::hash_file(&saved) {
+                    Ok(actual) if actual == file_hash => report.skipped += 1,
+                    Err(error) if error.kind() == ErrorKind::NotFound => {
+                        if let Err(error) = copy_verified(src, &saved, &file_hash) {
+                            failed(&mut report, src, format!("{error:#}"));
+                            continue;
+                        }
+                        report.copied += 1;
+                    }
+                    Ok(_) => {
+                        failed(
+                            &mut report,
+                            src,
+                            format!("saved copy is damaged; preserved at {}", saved.display()),
+                        );
+                        continue;
+                    }
+                    Err(error) => {
+                        failed(&mut report, src, error);
+                        continue;
+                    }
+                }
             } else {
                 // Pair files share the primary's date and stem; without a primary hash they
                 // fall back to their own.
@@ -170,6 +189,7 @@ pub fn import_folder(inbox: &Path, library: &Path) -> anyhow::Result<ImportRepor
                 }
                 report.copied += 1;
             }
+            db.record_source(&file_hash, src)?;
             if !sidecar {
                 if index == 0 && kind == MediaKind::Photo {
                     photo = Some(file_hash);
@@ -189,10 +209,24 @@ pub fn import_folder(inbox: &Path, library: &Path) -> anyhow::Result<ImportRepor
         report.failed,
         &report.errors.join("\n"),
     )?;
+    if report.failed == 0 {
+        db.snapshot(&library.join(".catalog-backups"))?;
+    }
     Ok(report)
 }
 
 struct TempGuard(PathBuf);
+
+pub(crate) fn lock_library(library: &Path) -> anyhow::Result<File> {
+    let file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(library.join(".photoxfer.lock"))?;
+    file.try_lock()
+        .context("another import or archive is using this library")?;
+    Ok(file)
+}
 impl Drop for TempGuard {
     fn drop(&mut self) {
         let _ = fs::remove_file(&self.0);

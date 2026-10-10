@@ -21,7 +21,11 @@ fn setup() -> (tempfile::TempDir, PathBuf, PathBuf) {
 fn files(root: &Path) -> Vec<PathBuf> {
     let mut result = Vec::new();
     for entry in fs::read_dir(root).unwrap() {
-        let path = entry.unwrap().path();
+        let entry = entry.unwrap();
+        let path = entry.path();
+        if entry.file_name().to_string_lossy().starts_with('.') {
+            continue;
+        }
         if path.is_dir() {
             result.extend(files(&path));
         } else {
@@ -38,6 +42,33 @@ fn target(src: &Path, library: &Path) -> PathBuf {
         layout::file_stem(taken, &hash::hash_file(src).unwrap())
     ))
 }
+
+#[test]
+fn missing_saved_copy_is_restored_on_repeat_import() {
+    let (_temp, inbox, library) = setup();
+    let src = inbox.join("a.jpg");
+    fs::write(&src, common::jpeg_with_date()).unwrap();
+    import_folder(&inbox, &library).unwrap();
+    let dest = target(&src, &library);
+    fs::remove_file(&dest).unwrap();
+    let report = import_folder(&inbox, &library).unwrap();
+    assert_eq!(report.copied, 1);
+    assert_eq!(fs::read(dest).unwrap(), fs::read(src).unwrap());
+}
+
+#[test]
+fn damaged_saved_copy_is_reported_and_preserved() {
+    let (_temp, inbox, library) = setup();
+    let src = inbox.join("a.jpg");
+    fs::write(&src, common::jpeg_with_date()).unwrap();
+    import_folder(&inbox, &library).unwrap();
+    let dest = target(&src, &library);
+    fs::write(&dest, b"damaged").unwrap();
+    let report = import_folder(&inbox, &library).unwrap();
+    assert_eq!(report.failed, 1);
+    assert_eq!(report.skipped, 0);
+    assert_eq!(fs::read(dest).unwrap(), b"damaged");
+}
 #[test]
 fn dated_and_undated_layout_repeat_and_finished_counts() {
     let (_temp, inbox, library) = setup();
@@ -48,7 +79,7 @@ fn dated_and_undated_layout_repeat_and_finished_counts() {
     let report = import_folder(&inbox, &library).unwrap();
     assert_eq!((report.found, report.copied, report.failed), (2, 2, 0));
     let path = target(&dated, &library);
-    assert!(path.starts_with(library.join("2026/10")));
+    assert!(path.starts_with(library.join("2026/October")));
     assert_eq!(fs::read(path).unwrap(), fs::read(&dated).unwrap());
     assert!(target(&undated, &library).starts_with(library.join("_unsorted")));
     assert!(target(&undated, &library).is_file());

@@ -1,4 +1,5 @@
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
+use std::path::{Path, PathBuf};
 
 pub struct Db {
     pub conn: Connection,
@@ -16,8 +17,69 @@ impl Db {
         let conn = Connection::open(path)?;
         conn.pragma_update(None, "foreign_keys", "ON")?;
         let db = Db { conn };
+        let old_catalog: bool = db.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='assets') AND NOT EXISTS(SELECT 1 FROM sqlite_master WHERE name='source_files')",
+            [], |r| r.get(0),
+        )?;
+        if old_catalog {
+            db.snapshot(
+                &path
+                    .parent()
+                    .unwrap_or(Path::new("."))
+                    .join(".catalog-backups"),
+            )?;
+        }
         db.migrate()?;
         Ok(db)
+    }
+
+    pub fn open_read_only(path: &Path) -> rusqlite::Result<Db> {
+        Ok(Db {
+            conn: Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?,
+        })
+    }
+
+    pub fn snapshot(&self, directory: &Path) -> rusqlite::Result<PathBuf> {
+        std::fs::create_dir_all(directory)
+            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+        let path = directory.join(format!(
+            "library-{}.db",
+            chrono::Utc::now().format("%Y%m%dT%H%M%S%.9fZ")
+        ));
+        let reservation = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+        drop(reservation);
+        self.conn.backup("main", &path, None)?;
+        Ok(path)
+    }
+
+    pub fn record_source(&self, hash: &str, source: &Path) -> rusqlite::Result<()> {
+        let name = source.file_name().unwrap_or_default().to_string_lossy();
+        self.conn.execute(
+            "INSERT OR IGNORE INTO source_files(hash,original_name,source_path) VALUES(?1,?2,?3)",
+            params![hash, name, source.to_string_lossy()],
+        )?;
+        Ok(())
+    }
+
+    pub fn recorded_files(&self) -> rusqlite::Result<Vec<(String, String)>> {
+        self.conn.prepare("SELECT hash,library_path FROM assets UNION ALL SELECT sidecar_hash,library_path FROM sidecars")?
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?.collect()
+    }
+
+    pub fn stored_path(&self, hash: &str) -> rusqlite::Result<Option<String>> {
+        self.conn.query_row(
+            "SELECT library_path FROM assets WHERE hash=?1 UNION ALL SELECT library_path FROM sidecars WHERE sidecar_hash=?1 LIMIT 1",
+            [hash], |r| r.get(0),
+        ).optional()
+    }
+
+    pub fn find(&self, text: &str) -> rusqlite::Result<Vec<(String, String)>> {
+        self.conn.prepare("SELECT DISTINCT s.original_name,p.library_path FROM source_files s JOIN (SELECT hash,library_path FROM assets UNION ALL SELECT sidecar_hash,library_path FROM sidecars) p ON p.hash=s.hash WHERE instr(lower(s.original_name),lower(?1))>0 OR instr(lower(s.source_path),lower(?1))>0 ORDER BY s.original_name,p.library_path")?
+            .query_map([text], |r| Ok((r.get(0)?, r.get(1)?)))?.collect()
     }
 
     pub fn open_in_memory() -> rusqlite::Result<Db> {
@@ -35,7 +97,8 @@ impl Db {
             CREATE TABLE IF NOT EXISTS device_seen(device_id TEXT NOT NULL, object_id TEXT NOT NULL, size INTEGER NOT NULL, hash TEXT NOT NULL, PRIMARY KEY(device_id, object_id, size));
             CREATE TABLE IF NOT EXISTS live_pairs(photo_hash TEXT PRIMARY KEY REFERENCES assets(hash), mov_hash TEXT NOT NULL REFERENCES assets(hash));
             CREATE TABLE IF NOT EXISTS sidecars(sidecar_hash TEXT PRIMARY KEY, asset_hash TEXT NOT NULL REFERENCES assets(hash), library_path TEXT NOT NULL);
-            CREATE TABLE IF NOT EXISTS imports(id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, copied INTEGER, skipped INTEGER, failed INTEGER, errors TEXT);")
+            CREATE TABLE IF NOT EXISTS imports(id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, copied INTEGER, skipped INTEGER, failed INTEGER, errors TEXT);
+            CREATE TABLE IF NOT EXISTS source_files(hash TEXT NOT NULL, original_name TEXT NOT NULL, source_path TEXT NOT NULL, PRIMARY KEY(hash,source_path));")
     }
 
     pub fn has_asset(&self, hash: &str) -> rusqlite::Result<bool> {
