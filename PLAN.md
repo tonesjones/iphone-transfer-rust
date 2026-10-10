@@ -131,6 +131,7 @@ Desktop implementation checkpoint (2026-10-10):
 - All 58 tests pass, including the desktop pipeline's repeat/missing-copy recovery and damaged-copy failure cases. Formatting and Clippy pass.
 - Inspected the real Windows window and increased text and button sizes. A real button-triggered run verified 35 current source files, 111 saved files, and 111 archive files with zero new media copies. The button is disabled during work; green completion is scoped to local checks.
 - Release executable and separate `PhotoXfer Desktop.lnk` are available in the repository folder. Phone completeness and cloud recovery are still unverified.
+- Styling refinement: Windows Segoe UI and Semibold fonts with fallback, light background, consistent bordered progress cards, distinct success/error panels, and expandable folder paths. Inspected the rebuilt Windows window; no added dependencies or redistributed system fonts.
 
 ## Updated run evidence (2026-10-10)
 

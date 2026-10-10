@@ -15,6 +15,8 @@ Double-click **PhotoXfer Desktop.lnk**, then select **Back Up Now**. The window 
 
 Defaults follow your Windows user folder and OneDrive location. For a different setup, launch `photoxfer-desktop.exe` with `--from`, `--to`, and `--archive` paths. The console shortcut below remains available for troubleshooting.
 
+The desktop window uses Segoe UI and Segoe UI Semibold from your Windows installation, with bundled fallback fonts if either is unavailable. Backup folders are under the expandable **Your backup folders** section.
+
 ## Windows backup
 
 Build the release executable from the repository folder:
