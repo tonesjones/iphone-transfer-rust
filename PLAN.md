@@ -6,28 +6,49 @@ choice, data model, iPhone gotchas, risks) is in the
 [plan doc](https://claude.ai/code/artifact/2dec4039-e092-4cc2-905f-a121e69d9655). This file tracks
 progress against it.
 
-Last updated: 2026-10-08.
+Last updated: 2026-10-10.
+
+## Decision 2026-10-10: import from iCloud, park USB
+
+USB/WPD access is blocked on the phone side. The spike finds "Apple iPhone", but `Internal Storage`
+stays empty, in File Explorer too, even after installing Apple Devices and tapping Trust (one run
+got `GetValues(s10003)` → `0x80042008`). iCloud for Windows already mirrors the library to
+`C:\Users\Owner\iCloudPhotos`, so the source is now that folder:
+
+```powershell
+photoxfer import --from C:\Users\Owner\iCloudPhotos --to C:\Users\Owner\Pictures\photoxfer
+```
+
+Done on 2026-10-10: all 110 iCloud files imported, a re-run copied 0, and a SHA-256 cross-check
+found every source file in the library with nothing missing or extra. The iCloud folder is pinned
+("Always keep on this device") so originals stay downloaded.
+
+The library is outside OneDrive on purpose: syncing `library.db` mid-write risks corruption, and
+OneDrive handles hard links poorly.
 
 ## Next checkpoint
 
 Pick up here.
 
-1. **You: run the WPD spike on the phone.** Follow [WINDOWS.md](WINDOWS.md). Send back
-   `spike.log`, the `Get-FileHash` output, and any error text.
-2. **You: merge PR #1** (squash) once the spike result is in. If the spike fails, fix it on the
-   same branch first.
-3. **Next session: phase 1 device import.** Start from the spike result. If WPD works, wire
-   `crates/wpd` into the import (see phase 1's open items below). If WPD fails or is flaky,
-   decide between fixing it and the fallbacks in the plan doc (Microsoft Photos into an inbox
-   folder, or libimobiledevice over FFI).
+1. **You: confirm completeness.** Compare the Photos app count (Library → All Photos, bottom of
+   the list) with the iCloud folder's 110 files. Filenames reach IMG_3352, so the phone may hold
+   more; if so, check iCloud Photos is on for the phone and in iCloud for Windows.
+2. **You: spot-check the library** in `C:\Users\Owner\Pictures\photoxfer`, then delete
+   `C:\Users\Owner\Pictures\photoxfer-run1` (an earlier run that also copied two `desktop.ini`
+   files).
+3. **Later: free iCloud space.** Only after the library has proven itself over time, and with a
+   backup of it. Deleting from iCloud also deletes from the phone, so the order is: turn off
+   iCloud Photos on the phone (keeping local copies), then Manage Storage → Photos → Turn Off &
+   Delete. You do this step; it isn't automated.
 
-Machine state: Rust 1.99 (MSVC) was installed with winget on 2026-10-08, plus the
-`x86_64-pc-windows-gnu` target. MinGW is not installed, so the GNU-target check covers only
-`crates/wpd`.
+Machine state: Rust 1.99 (MSVC) and the `x86_64-pc-windows-gnu` target (winget, 2026-10-08);
+Apple Devices 1.1540 (winget, 2026-10-10). MinGW is not installed, so the GNU-target check covers
+only `crates/wpd`.
 
 ## Phase 0: WPD spike
 
-Code done in PR #1. Waiting on the hardware run.
+Code done in PR #1. **Parked:** the hardware run is blocked on the phone side (see the decision
+above). Retry only once File Explorer shows `Internal Storage\DCIM`.
 
 - [x] Enumerate portable devices and find "Apple iPhone".
   Accept: `wpd-spike` prints every device and picks the iPhone by friendly name or description.
@@ -50,6 +71,12 @@ Code done in PR #1. Waiting on the hardware run.
 - [x] Live Photo pairing and AAE sidecars.
   Accept: HEIC, MOV and AAE share one stem and folder; `live_pairs` and `sidecars` rows exist.
 - [x] A second run of the same inbox copies 0 files.
+- [x] Non-media files (`desktop.ini` and similar) are ignored and counted, not copied.
+- [x] Quiet output: one summary line; `nom_exif` logging is off and other logs go to stderr.
+- [x] Real run on the iCloud folder (110 files, re-run copies 0, SHA-256 cross-check clean).
+
+Parked with phase 0 (only needed if USB comes back):
+
 - [ ] Import straight from the phone (`photoxfer import --to <library>` with no `--from`).
   Accept: streams each DCIM file through the same verify-after-copy path; never reads a whole
   file into memory.
@@ -86,8 +113,11 @@ Not started. See the plan doc.
 - **Where device import lives.** Proposed: `crates/cli` depends on both `photoxfer-core` and
   `photoxfer-wpd`, and core gets a source-agnostic import entry point that takes a reader per file.
   This keeps core free of Windows code.
-- **Default library location.** This sets the default `--to` path. Still open from the plan doc.
-- **Deleting from the phone after import.** Not planned; WPD access is read-only.
+- **Default library location.** Decided 2026-10-10: `C:\Users\Owner\Pictures\photoxfer`. `--to`
+  is still required on the command line.
+- **Deleting from the phone or iCloud after import.** Wanted eventually, once the library has
+  been validated over time. Not automated: the iCloud folder is a two-way sync, so deleting there
+  deletes from the phone too. Revisit with a backup in place.
 
 ## Known gaps
 
