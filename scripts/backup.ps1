@@ -1,6 +1,6 @@
 param(
     [string]$Source = 'C:\Users\Owner\iCloudPhotos',
-    [string]$Library = 'C:\Users\Owner\Pictures\photoxfer',
+    [string]$Library = 'C:\Users\Owner\Pictures\iPhone Backup',
     [string]$Archive = 'C:\Users\Owner\OneDrive\Photo Backups',
     [string]$Executable = (Join-Path (Split-Path -Parent $PSScriptRoot) 'target\release\photoxfer.exe'),
     [switch]$NoPause

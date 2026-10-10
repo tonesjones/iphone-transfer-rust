@@ -256,7 +256,7 @@ fn main() -> eframe::Result {
         source: args.from.unwrap_or_else(|| home.join("iCloudPhotos")),
         library: args
             .to
-            .unwrap_or_else(|| home.join("Pictures").join("photoxfer")),
+            .unwrap_or_else(|| home.join("Pictures").join("iPhone Backup")),
         archive: args
             .archive
             .unwrap_or_else(|| onedrive.join("Photo Backups")),

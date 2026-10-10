@@ -16,7 +16,7 @@ got `GetValues(s10003)` → `0x80042008`). iCloud for Windows already mirrors th
 `C:\Users\Owner\iCloudPhotos`, so the source is now that folder:
 
 ```powershell
-photoxfer import --from C:\Users\Owner\iCloudPhotos --to C:\Users\Owner\Pictures\photoxfer
+photoxfer import --from C:\Users\Owner\iCloudPhotos --to "C:\Users\Owner\Pictures\iPhone Backup"
 ```
 
 Done on 2026-10-10: all 110 iCloud files imported, a re-run copied 0, and a SHA-256 cross-check
@@ -132,6 +132,7 @@ Desktop implementation checkpoint (2026-10-10):
 - Inspected the real Windows window and increased text and button sizes. A real button-triggered run verified 35 current source files, 111 saved files, and 111 archive files with zero new media copies. The button is disabled during work; green completion is scoped to local checks.
 - Release executable and separate `PhotoXfer Desktop.lnk` are available in the repository folder. Phone completeness and cloud recovery are still unverified.
 - Styling refinement: Windows Segoe UI and Semibold fonts with fallback, light background, consistent bordered progress cards, distinct success/error panels, and expandable folder paths. Inspected the rebuilt Windows window; no added dependencies or redistributed system fonts.
+- Saved library renamed to `Pictures\iPhone Backup`; app and console defaults updated together. All 111 files verified before and after the rename, and the catalog hash was unchanged. The full console workflow verified 35 source files and both 111-file local copies with no new media copies.
 
 ## Updated run evidence (2026-10-10)
 
@@ -152,7 +153,7 @@ Desktop implementation checkpoint (2026-10-10):
 - **Where device import lives.** Proposed: `crates/cli` depends on both `photoxfer-core` and
   `photoxfer-wpd`, and core gets a source-agnostic import entry point that takes a reader per file.
   This keeps core free of Windows code.
-- **Default library location.** Decided 2026-10-10: `C:\Users\Owner\Pictures\photoxfer`. `--to`
+- **Default library location.** Decided 2026-10-10: `C:\Users\Owner\Pictures\iPhone Backup`. `--to`
   is still required on the command line.
 - **Deleting from the phone or iCloud after import.** Wanted eventually, once the library has
   been validated over time. Not automated: the iCloud folder is a two-way sync, so deleting there
