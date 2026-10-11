@@ -291,3 +291,16 @@ fn recursive_inbox_and_orphan_mov_are_imported() {
     ));
     assert_eq!(fs::read(dest).unwrap(), fs::read(&src).unwrap());
 }
+
+#[test]
+fn reports_paths_of_newly_saved_files() {
+    let (_temp, inbox, library) = setup();
+    fs::write(inbox.join("IMG_0001.PNG"), b"first").unwrap();
+    let first = import_folder(&inbox, &library).unwrap();
+    assert_eq!(first.saved.len(), 1);
+    assert_eq!(fs::read(&first.saved[0]).unwrap(), b"first");
+    fs::write(inbox.join("IMG_0002.PNG"), b"second").unwrap();
+    let second = import_folder(&inbox, &library).unwrap();
+    assert_eq!(second.saved.len(), 1);
+    assert_eq!(fs::read(&second.saved[0]).unwrap(), b"second");
+}

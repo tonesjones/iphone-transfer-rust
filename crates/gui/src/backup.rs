@@ -12,6 +12,8 @@ pub struct Folders {
 
 pub enum Event {
     Started(usize),
+    /// Library paths of files the save step copied, for spot checks.
+    Saved(Vec<PathBuf>),
     /// Step index, a one-line summary, and the file count shown on that step's folder.
     Completed(usize, String, u64),
     /// Fraction of the whole backup done, from 0.0 to 1.0. Never decreases.
@@ -43,6 +45,7 @@ pub fn run(folders: &Folders, mut report: impl FnMut(Event)) {
                 saved.errors.join("\n")
             );
         }
+        report(Event::Saved(saved.saved));
         report(Event::Completed(
             0,
             format!(

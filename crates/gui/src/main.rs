@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod backup;
+mod icon;
 mod stage;
 mod theme;
 
@@ -64,6 +65,8 @@ struct App {
     /// The worker's latest overall progress, and the eased value the progress bar shows.
     progress: f32,
     shown_progress: f32,
+    /// Files the last backup saved to the library.
+    saved: Vec<PathBuf>,
 }
 
 impl App {
@@ -79,6 +82,7 @@ impl App {
             folder_error: None,
             progress: 0.0,
             shown_progress: 0.0,
+            saved: Vec::new(),
         }
     }
 
@@ -92,6 +96,7 @@ impl App {
         self.error = None;
         self.progress = 0.0;
         self.shown_progress = 0.0;
+        self.saved.clear();
         self.running = true;
         let (sender, receiver) = mpsc::channel();
         self.receiver = Some(receiver);
@@ -121,6 +126,7 @@ impl App {
             match receiver.try_recv() {
                 Ok(Event::Started(index)) => self.steps[index] = Status::Working,
                 Ok(Event::Progress(done)) => self.progress = done,
+                Ok(Event::Saved(paths)) => self.saved = paths,
                 Ok(Event::Completed(index, text, files)) => {
                     self.steps[index] = Status::Done(text, files)
                 }
@@ -330,6 +336,53 @@ impl App {
         }
     }
 
+    /// Lists the files the last backup saved, with links to open them or find them in Explorer.
+    fn new_files(&mut self, ui: &mut egui::Ui) {
+        const SHOWN: usize = 8;
+        ui.label(eyebrow("NEWLY SAVED · SPOT CHECK"));
+        ui.add_space(2.0);
+        let mut error = None;
+        egui::Frame::new()
+            .fill(CARD)
+            .stroke(Stroke::new(1.0, LINE))
+            .corner_radius(12)
+            .inner_margin(egui::Margin::symmetric(14, 10))
+            .show(ui, |ui| {
+                ui.set_min_width(ui.available_width());
+                for path in self.saved.iter().take(SHOWN) {
+                    ui.horizontal(|ui| {
+                        let name = path.file_name().unwrap_or_default().to_string_lossy();
+                        ui.label(RichText::new(name).size(13.5))
+                            .on_hover_text(path.display().to_string());
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui
+                                .link(RichText::new("Show in folder").size(13.0))
+                                .clicked()
+                            {
+                                error = show_in_folder(path).err();
+                            }
+                            if ui.link(RichText::new("Open").size(13.0)).clicked() {
+                                error = open_folder_or_file(path).err();
+                            }
+                        });
+                    });
+                }
+                if self.saved.len() > SHOWN {
+                    ui.label(
+                        RichText::new(format!(
+                            "…and {} more in your saved library",
+                            self.saved.len() - SHOWN
+                        ))
+                        .size(12.5)
+                        .color(FAINT),
+                    );
+                }
+            });
+        if error.is_some() {
+            self.folder_error = error;
+        }
+    }
+
     fn checklist(ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.label(eyebrow("BEFORE DELETING PHOTOS"));
@@ -453,11 +506,31 @@ fn open_folder(path: &std::path::Path) -> Result<(), String> {
             path.display()
         ));
     }
+    open_folder_or_file(path)
+}
+
+/// Explorer opens a folder in a window and a file in its default app.
+fn open_folder_or_file(path: &std::path::Path) -> Result<(), String> {
     std::process::Command::new("explorer.exe")
         .arg(path)
         .spawn()
         .map(drop)
         .map_err(|error| format!("Could not open {}: {error}", path.display()))
+}
+
+/// Opens the file's folder in Explorer with the file selected.
+fn show_in_folder(path: &std::path::Path) -> Result<(), String> {
+    let mut command = std::process::Command::new("explorer.exe");
+    // Explorer parses `/select,"path"` itself and rejects the quoting Rust adds to one argument.
+    #[cfg(windows)]
+    std::os::windows::process::CommandExt::raw_arg(
+        &mut command,
+        format!("/select,\"{}\"", path.display()),
+    );
+    command
+        .spawn()
+        .map(drop)
+        .map_err(|error| format!("Could not show {}: {error}", path.display()))
 }
 
 impl eframe::App for App {
@@ -498,6 +571,10 @@ impl eframe::App for App {
                     self.stage(ui);
                     ui.add_space(14.0);
                     self.result(ui);
+                    if !self.saved.is_empty() {
+                        ui.add_space(18.0);
+                        self.new_files(ui);
+                    }
                     ui.add_space(18.0);
                     Self::checklist(ui);
                 });
@@ -554,7 +631,8 @@ fn launch() -> anyhow::Result<()> {
         eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default()
                 .with_inner_size([980.0, 660.0])
-                .with_min_inner_size([880.0, 600.0]),
+                .with_min_inner_size([880.0, 600.0])
+                .with_icon(icon::logo()),
             centered: true,
             ..Default::default()
         },

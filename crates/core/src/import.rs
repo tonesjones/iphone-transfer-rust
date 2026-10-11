@@ -19,6 +19,8 @@ pub struct ImportReport {
     pub failed: u64,
     pub ignored: u64,
     pub errors: Vec<String>,
+    /// Library paths of the files this import copied, including restored missing copies.
+    pub saved: Vec<PathBuf>,
 }
 
 fn failed(report: &mut ImportReport, path: &Path, error: impl std::fmt::Display) {
@@ -136,6 +138,7 @@ pub fn import_folder_with_progress(
                             continue;
                         }
                         report.copied += 1;
+                        report.saved.push(saved);
                     }
                     Ok(_) => {
                         failed(
@@ -200,6 +203,7 @@ pub fn import_folder_with_progress(
                     return Err(error.into());
                 }
                 report.copied += 1;
+                report.saved.push(dest);
             }
             db.record_source(&file_hash, src)?;
             if !sidecar {
