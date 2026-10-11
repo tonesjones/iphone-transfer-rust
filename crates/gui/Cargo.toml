@@ -18,8 +18,13 @@ eframe = { version = "0.36.2", default-features = false, features = ["default_fo
 raw-window-handle = "0.6.2"
 windows = { workspace = true, features = ["Win32_Graphics_Dwm", "Win32_UI_WindowsAndMessaging"] }
 
+[build-dependencies]
+# Embeds icons/photoxfer.ico in the .exe so shortcuts and the taskbar show the logo.
+winresource = { version = "0.1.31", default-features = false }
+
 [dev-dependencies]
 tempfile.workspace = true
 
 [lints]
 workspace = true
+
