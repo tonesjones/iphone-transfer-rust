@@ -82,6 +82,13 @@ impl Db {
             .query_map([text], |r| Ok((r.get(0)?, r.get(1)?)))?.collect()
     }
 
+    pub fn rename_sources(&self, hash: &str) -> rusqlite::Result<Vec<String>> {
+        self.conn
+            .prepare("SELECT old_path FROM renames WHERE hash=?1")?
+            .query_map([hash], |r| r.get(0))?
+            .collect()
+    }
+
     pub fn open_in_memory() -> rusqlite::Result<Db> {
         let conn = Connection::open_in_memory()?;
         conn.pragma_update(None, "foreign_keys", "ON")?;
@@ -98,7 +105,8 @@ impl Db {
             CREATE TABLE IF NOT EXISTS live_pairs(photo_hash TEXT PRIMARY KEY REFERENCES assets(hash), mov_hash TEXT NOT NULL REFERENCES assets(hash));
             CREATE TABLE IF NOT EXISTS sidecars(sidecar_hash TEXT PRIMARY KEY, asset_hash TEXT NOT NULL REFERENCES assets(hash), library_path TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS imports(id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, copied INTEGER, skipped INTEGER, failed INTEGER, errors TEXT);
-            CREATE TABLE IF NOT EXISTS source_files(hash TEXT NOT NULL, original_name TEXT NOT NULL, source_path TEXT NOT NULL, PRIMARY KEY(hash,source_path));")
+            CREATE TABLE IF NOT EXISTS source_files(hash TEXT NOT NULL, original_name TEXT NOT NULL, source_path TEXT NOT NULL, PRIMARY KEY(hash,source_path));
+            CREATE TABLE IF NOT EXISTS renames(hash TEXT NOT NULL, old_path TEXT NOT NULL, new_path TEXT NOT NULL, PRIMARY KEY(hash,old_path,new_path));")
     }
 
     pub fn has_asset(&self, hash: &str) -> rusqlite::Result<bool> {

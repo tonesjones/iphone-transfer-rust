@@ -68,6 +68,9 @@ pub fn archive_with_progress(
         bail!("archive and working library must be separate, non-nested folders");
     }
     let _lock = lock_library(&library)?;
+    let db = Db::open(&library.join("library.db"))?;
+    crate::renames::reconcile(&library, &db)?;
+    drop(db);
     let report = check::check_with_progress(&library, &library, &mut |done| progress(done * 0.4))?;
     if !report.is_clean() {
         bail!(
@@ -88,6 +91,9 @@ pub fn archive_with_progress(
             bail!("library file changed during archive: {relative}");
         }
         let target = destination.join(path);
+        if !target.try_exists()? {
+            follow_rename(&db, &destination, &target, expected)?;
+        }
         if target.try_exists()? {
             if hash::hash_file(&target)? != *expected {
                 bail!(
@@ -143,6 +149,25 @@ pub fn archive_with_progress(
         verified: records.len(),
         manifest: manifest_path,
     })
+}
+
+/// Move the archive's own copy of a renamed library file to its new name. Only an exact
+/// content match moves, and nothing is overwritten.
+fn follow_rename(db: &Db, destination: &Path, target: &Path, expected: &str) -> anyhow::Result<()> {
+    for old in db.rename_sources(expected)? {
+        let Ok(old) = relative_path(&old) else {
+            continue;
+        };
+        let old = destination.join(old);
+        if old.is_file() && hash::hash_file(&old)? == expected {
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::rename(&old, target)?;
+            return Ok(());
+        }
+    }
+    Ok(())
 }
 
 /// Verify a cloud-restored batch without writing to it. Manifest paths are relative to root.

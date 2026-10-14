@@ -83,6 +83,7 @@ pub fn import_folder_with_progress(
     let library = fs::canonicalize(library)?;
     let _lock = lock_library(&library)?;
     let db = Db::open(&library.join("library.db"))?;
+    crate::renames::reconcile(&library, &db)?;
     let id = db.begin_import(&inbox.display().to_string())?;
     let mut report = ImportReport::default();
     let mut files = Vec::new();
