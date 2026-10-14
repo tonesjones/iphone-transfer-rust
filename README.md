@@ -116,6 +116,6 @@ Run the backup again to restore a missing saved copy if the matching source file
 
 If a saved copy is damaged, the app preserves it and stops. Keep the damaged file separately, restore the saved copy from a verified source or archive, and run the checks again. There is no automatic repair command.
 
-Imports save database snapshots in the library's `.catalog-backups` folder. The second copy also keeps snapshots and recovery file lists. These files accumulate because retention is not implemented.
+Imports save database snapshots in the library's `.catalog-backups` folder. The second copy also keeps snapshots and recovery file lists. After each successful import and archive run, the app keeps the newest 10 library snapshots and the newest 10 recovery sets (snapshot and file list together) and deletes older ones. It also removes leftover `.partial` temporary files from the library. It never deletes media files, and a failed run deletes nothing.
 
 Archive checks read every file's contents. OneDrive may download online-only files during each check. To avoid repeated downloads, select **Always keep on this device** for **Photo Backups** in OneDrive. Keeping the files locally uses computer disk space.
