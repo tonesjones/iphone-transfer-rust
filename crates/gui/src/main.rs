@@ -72,6 +72,7 @@ struct App {
     recovery_manifest: Option<PathBuf>,
     restore_receiver: Option<mpsc::Receiver<RestoreEvent>>,
     restore_running: bool,
+    restore_cloud: bool,
     restore_progress: f32,
     restore_result: Option<RestoreEvent>,
     restore_error: Option<String>,
@@ -94,6 +95,7 @@ impl App {
             saved: Vec::new(),
             restore_receiver: None,
             restore_running: false,
+            restore_cloud: false,
             restore_progress: 0.0,
             restore_result: None,
             restore_error: None,
@@ -197,6 +199,7 @@ impl App {
         if self.running || self.restore_running {
             return;
         }
+        self.restore_cloud = false;
         #[cfg(windows)]
         let chosen = picker::folder();
         #[cfg(not(windows))]
@@ -235,6 +238,30 @@ impl App {
         });
     }
 
+    fn start_cloud_test(&mut self) {
+        if self.running || self.restore_running {
+            return;
+        }
+        self.restore_cloud = true;
+        self.restore_running = true;
+        self.restore_progress = 0.0;
+        self.restore_result = None;
+        self.restore_error = None;
+        self.close_blocked = false;
+        let (sender, receiver) = mpsc::channel();
+        self.restore_receiver = Some(receiver);
+        let archive = self.folders.archive.clone();
+        let onedrive = ["OneDrive", "OneDriveConsumer", "OneDriveCommercial"]
+            .into_iter()
+            .find_map(std::env::var_os)
+            .map(PathBuf::from);
+        std::thread::spawn(move || {
+            backup::run_cloud_test(&archive, onedrive.as_deref(), |event| {
+                let _ = sender.send(event);
+            });
+        });
+    }
+
     fn restore_card(&mut self, ui: &mut egui::Ui) {
         let list = self.recovery_manifest.as_ref().map_or_else(
             || "Run a backup first".into(),
@@ -246,6 +273,15 @@ impl App {
             },
         );
         ui.label(RichText::new(list).size(12.0).color(FAINT));
+        if ui
+            .add_enabled(
+                !self.running && !self.restore_running,
+                egui::Button::new("Test the cloud copy"),
+            )
+            .clicked()
+        {
+            self.start_cloud_test();
+        }
         if ui
             .add_enabled(
                 !self.running && !self.restore_running,
@@ -271,6 +307,17 @@ impl App {
             ui.label(RichText::new(error).size(12.5).color(ERROR));
         }
         match &self.restore_result {
+            Some(RestoreEvent::CloudPassed { files, manifest }) => {
+                banner(ui, SUCCESS, |ui| {
+                    ui.label(
+                        RichText::new(format!(
+                            "Cloud test passed: {files} files downloaded from OneDrive match {manifest}."
+                        ))
+                        .font(semibold(15.5))
+                        .color(SUCCESS),
+                    );
+                });
+            }
             Some(RestoreEvent::Passed { files, manifest }) => {
                 banner(ui, SUCCESS, |ui| {
                     ui.label(
@@ -286,9 +333,13 @@ impl App {
             Some(RestoreEvent::Failed(error)) => {
                 banner(ui, ERROR, |ui| {
                     ui.label(
-                        RichText::new("The downloaded copy doesn't match")
-                            .font(semibold(15.5))
-                            .color(ERROR),
+                        RichText::new(if self.restore_cloud {
+                            "The cloud test failed"
+                        } else {
+                            "The downloaded copy doesn't match"
+                        })
+                        .font(semibold(15.5))
+                        .color(ERROR),
                     );
                     egui::CollapsingHeader::new(
                         RichText::new("Technical details").size(13.5).color(TEXT),
@@ -560,7 +611,7 @@ impl App {
             ),
             (
                 "Test a fresh cloud download",
-                "Once OneDrive uploads, download a fresh copy and verify its recovery file list.",
+                "Once OneDrive uploads, test a fresh download automatically or check a folder you downloaded.",
             ),
         ];
         ui.columns(2, |columns| {

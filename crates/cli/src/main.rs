@@ -61,6 +61,13 @@ enum Command {
         #[arg(long)]
         manifest: PathBuf,
     },
+    /// Download a sample of the archive from OneDrive and verify its contents.
+    CloudTest {
+        #[arg(long)]
+        archive: PathBuf,
+        #[arg(long, default_value_t = 25)]
+        sample: usize,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -217,6 +224,36 @@ fn main() -> anyhow::Result<()> {
             println!(
                 "All {count} files in the recovery file list match, including the database backup.\nThis confirms cloud recovery only if this folder was downloaded separately from OneDrive."
             );
+        }
+        Command::CloudTest { archive, sample } => {
+            #[cfg(windows)]
+            {
+                use photoxfer_core::cloud::{WindowsCloudFiles, cloud_test};
+                let onedrive = ["OneDrive", "OneDriveConsumer", "OneDriveCommercial"]
+                    .into_iter()
+                    .find_map(std::env::var_os)
+                    .map(PathBuf::from);
+                let seed = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)?
+                    .as_nanos() as u64;
+                let report = cloud_test(
+                    &archive,
+                    onedrive.as_deref(),
+                    sample,
+                    seed,
+                    &WindowsCloudFiles,
+                    &mut |_| {},
+                )?;
+                println!(
+                    "Cloud test passed: {} files downloaded from OneDrive match {}.",
+                    report.files, report.manifest
+                );
+            }
+            #[cfg(not(windows))]
+            {
+                let _ = (archive, sample);
+                anyhow::bail!("The cloud-test command needs Windows.");
+            }
         }
     }
     Ok(())

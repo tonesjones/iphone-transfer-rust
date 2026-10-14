@@ -163,7 +163,14 @@ impl App {
             );
         } else {
             let (accent, label) = if self.restore_running {
-                (Some(FAINT), "Checking download…")
+                (
+                    Some(FAINT),
+                    if self.restore_cloud {
+                        "Testing cloud copy…"
+                    } else {
+                        "Checking download…"
+                    },
+                )
             } else if self.error.is_some() {
                 (Some(ERROR), "Try again")
             } else if self.finished {

@@ -25,7 +25,41 @@ pub enum Event {
 pub(crate) enum RestoreEvent {
     Progress(f32),
     Passed { files: usize, manifest: String },
+    CloudPassed { files: usize, manifest: String },
     Failed(String),
+}
+
+pub(crate) fn run_cloud_test(
+    archive: &Path,
+    onedrive: Option<&Path>,
+    mut report: impl FnMut(RestoreEvent),
+) {
+    #[cfg(windows)]
+    let result = (|| -> anyhow::Result<photoxfer_core::cloud::CloudReport> {
+        let seed = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_nanos() as u64;
+        photoxfer_core::cloud::cloud_test(
+            archive,
+            onedrive,
+            25,
+            seed,
+            &photoxfer_core::cloud::WindowsCloudFiles,
+            &mut |done| report(RestoreEvent::Progress(done)),
+        )
+    })();
+    #[cfg(not(windows))]
+    let result: anyhow::Result<photoxfer_core::cloud::CloudReport> = {
+        let _ = (archive, onedrive);
+        Err(anyhow::anyhow!("The cloud test needs Windows."))
+    };
+    match result {
+        Ok(result) => report(RestoreEvent::CloudPassed {
+            files: result.files,
+            manifest: result.manifest,
+        }),
+        Err(error) => report(RestoreEvent::Failed(format!("{error:#}"))),
+    }
 }
 
 pub(crate) fn refuse_restore_folder(
