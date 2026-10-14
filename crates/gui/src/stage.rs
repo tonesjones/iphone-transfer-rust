@@ -131,10 +131,11 @@ impl App {
         let size = Vec2::new(stage.width().min(320.0) - 40.0, 50.0);
         let rect = Rect::from_center_size(Pos2::new(stage.center().x, stage.bottom() - 46.0), size);
         let response = ui.interact(rect, ui.id().with("backup"), Sense::click());
+        let disabled = self.running || self.restore_running;
         let hover = ui
             .ctx()
-            .animate_bool(response.id, response.hovered() && !self.running);
-        if !self.running {
+            .animate_bool(response.id, response.hovered() && !disabled);
+        if !disabled {
             response.clone().on_hover_cursor(CursorIcon::PointingHand);
         }
         let radius = (size.y / 2.0) as u8;
@@ -161,7 +162,9 @@ impl App {
                 TEXT,
             );
         } else {
-            let (accent, label) = if self.error.is_some() {
+            let (accent, label) = if self.restore_running {
+                (Some(FAINT), "Checking download…")
+            } else if self.error.is_some() {
                 (Some(ERROR), "Try again")
             } else if self.finished {
                 (Some(SUCCESS), "Back up again")
@@ -203,7 +206,7 @@ impl App {
                 Color32::WHITE,
             );
         }
-        if response.clicked() && !self.running {
+        if response.clicked() && !disabled {
             self.start();
         }
     }

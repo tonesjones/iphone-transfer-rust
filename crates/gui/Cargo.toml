@@ -16,7 +16,7 @@ eframe = { version = "0.36.2", default-features = false, features = ["default_fo
 [target.'cfg(windows)'.dependencies]
 # Already in Cargo.lock through eframe; named here to read the window handle for the title bar.
 raw-window-handle = "0.6.2"
-windows = { workspace = true, features = ["Win32_Graphics_Dwm", "Win32_UI_WindowsAndMessaging"] }
+windows = { workspace = true, features = ["Win32_Graphics_Dwm", "Win32_UI_WindowsAndMessaging", "Win32_UI_Shell", "Win32_UI_Shell_Common"] }
 
 [build-dependencies]
 # Embeds icons/photoxfer.ico in the .exe so shortcuts and the taskbar show the logo.
