@@ -38,12 +38,14 @@ enum Command {
         #[arg(long)]
         to: PathBuf,
     },
-    /// List undated files with estimated dates for you to review. Read-only.
+    /// Review estimated dates or apply the dates accepted in a preview.
     Dates {
         #[arg(long)]
         to: PathBuf,
         #[arg(long, default_value = "undated.tsv")]
         out: PathBuf,
+        #[arg(long)]
+        apply: Option<PathBuf>,
     },
     /// Copy verified media and a database snapshot to a separate archive folder.
     Archive {
@@ -178,7 +180,19 @@ fn main() -> anyhow::Result<()> {
             }
             println!("{} matching source references", matches.len());
         }
-        Command::Dates { to, out } => {
+        Command::Dates { to, out, apply } => {
+            if let Some(tsv) = apply {
+                let report = photoxfer_core::dates::apply(&to, &tsv)?;
+                for (old, new) in &report.moved {
+                    println!("{old} -> {new}");
+                }
+                println!(
+                    "{} files dated, {} left undated. Your second copy keeps its old copies and gains the new paths on the next backup.",
+                    report.moved.len(),
+                    report.kept_undated
+                );
+                return Ok(());
+            }
             let rows = photoxfer_core::dates::undated(&to)?;
             photoxfer_core::dates::write_preview(&rows, &out)?;
             println!("{} undated files", rows.len());
