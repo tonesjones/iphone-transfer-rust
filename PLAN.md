@@ -212,6 +212,16 @@ Claude reviews every diff, runs the tests, and owns this file and the README. No
   `attrib +U` evicted it in 1 s (0 bytes on disk, recall-on-access set). `verify` downloaded it
   in 0.6 s, the hash matched, and the file returned to its original unpinned state on its own.
   The manual downloaded-folder check stays as the deeper test.
+- [x] I7 Renamed library files (`claude/rename-follow`). Renaming a file in the library (for
+  example `2026-10-07_235230_e2360c.png` to `Sofi Crypto Receipt.png`) is recognised by its
+  BLAKE3 hash instead of being reported as damage. `import` and `archive` record the new path in
+  the catalog and keep both names searchable with `find`; `archive` moves its own copy to the new
+  name when the hash matches. `check` stays read-only and reports the rename without failing.
+  Accept: after a rename, `check` is clean and lists the rename; `import` updates the catalog and
+  `find` finds the new name; `archive` leaves one copy under the new name (no second copy) and
+  `verify` passes on the new manifest; a missing file with no matching unrecorded file is still
+  damage; an unrecorded copy of a file whose original still exists is still reported untracked;
+  media bytes never change.
 
 ### Status at end of session (2026-10-13)
 

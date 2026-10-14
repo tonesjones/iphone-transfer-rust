@@ -7,6 +7,7 @@ use crate::{
     db::Db,
     hash,
     import::{ImportReport, walk},
+    renames,
 };
 
 #[derive(Debug, Default)]
@@ -20,6 +21,8 @@ pub struct CheckReport {
     pub library_problems: Vec<String>,
     /// Library files the database doesn't know about.
     pub untracked: Vec<PathBuf>,
+    /// Library files renamed since import, as (old path, new path). Not a problem.
+    pub renamed: Vec<(String, String)>,
     pub ignored: u64,
     pub errors: Vec<String>,
 }
@@ -55,7 +58,7 @@ pub fn check_with_progress(
     let db = Db::open_read_only(&db_path)?;
     let mut report = CheckReport::default();
 
-    let recorded = db.recorded_files()?;
+    let mut recorded = db.recorded_files()?;
     let known_paths: HashSet<_> = recorded
         .iter()
         .map(|(_, relative)| library.join(relative))
@@ -69,6 +72,18 @@ pub fn check_with_progress(
         .into_iter()
         .filter(|path| !known_paths.contains(path))
         .collect();
+    let found = renames::detect(&library, &recorded, &report.untracked);
+    for rename in &found {
+        report
+            .untracked
+            .retain(|path| *path != library.join(&rename.new));
+        if let Some(entry) = recorded.iter_mut().find(|(_, path)| *path == rename.old) {
+            entry.1 = rename.new.clone();
+        }
+        report
+            .renamed
+            .push((rename.old.clone(), rename.new.clone()));
+    }
 
     let mut scan = ImportReport::default();
     let mut source_files = Vec::new();

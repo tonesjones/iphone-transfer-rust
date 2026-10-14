@@ -105,6 +105,11 @@ fn main() -> anyhow::Result<()> {
                     report.errors.len()
                 );
             }
+            for (old, new) in &report.renamed {
+                println!(
+                    "Renamed since import (the next import or archive records it): {old} -> {new}"
+                );
+            }
             for path in &report.missing {
                 println!("No verified saved copy: {}", display_path(path));
             }

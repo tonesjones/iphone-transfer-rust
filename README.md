@@ -118,4 +118,8 @@ If a saved copy is damaged, the app preserves it and stops. Keep the damaged fil
 
 Imports save database snapshots in the library's `.catalog-backups` folder. The second copy also keeps snapshots and recovery file lists. After each successful import and archive run, the app keeps the newest 10 library snapshots and the newest 10 recovery sets (snapshot and file list together) and deletes older ones. It also removes leftover `.partial` temporary files from the library. It never deletes media files, and a failed run deletes nothing.
 
+## Rename files in the saved library
+
+You can rename a saved photo to something you will recognise later, such as `Sofi Crypto Receipt.png`. Keep the file extension and leave the contents alone. The app matches a renamed file to its catalog entry by contents, so `check` stays clean and lists the rename. The next import or archive records the new name, so `find` can search it. The archive moves its own copy to the new name, so it never keeps two copies. Older recovery file lists still use the old name; restore from the newest one.
+
 Archive checks read every file's contents. OneDrive may download online-only files during each check. To avoid repeated downloads, select **Always keep on this device** for **Photo Backups** in OneDrive. Keeping the files locally uses computer disk space.
