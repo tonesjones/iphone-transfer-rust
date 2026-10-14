@@ -109,7 +109,21 @@ impl Db {
             CREATE TABLE IF NOT EXISTS sidecars(sidecar_hash TEXT PRIMARY KEY, asset_hash TEXT NOT NULL REFERENCES assets(hash), library_path TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS imports(id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, copied INTEGER, skipped INTEGER, failed INTEGER, errors TEXT);
             CREATE TABLE IF NOT EXISTS source_files(hash TEXT NOT NULL, original_name TEXT NOT NULL, source_path TEXT NOT NULL, PRIMARY KEY(hash,source_path));
-            CREATE TABLE IF NOT EXISTS renames(hash TEXT NOT NULL, old_path TEXT NOT NULL, new_path TEXT NOT NULL, PRIMARY KEY(hash,old_path,new_path));")
+            CREATE TABLE IF NOT EXISTS renames(hash TEXT NOT NULL, old_path TEXT NOT NULL, new_path TEXT NOT NULL, PRIMARY KEY(hash,old_path,new_path));")?;
+        let has_date_basis: bool = self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('assets') WHERE name='date_basis')",
+            [],
+            |row| row.get(0),
+        )?;
+        if !has_date_basis {
+            self.conn
+                .execute("ALTER TABLE assets ADD COLUMN date_basis TEXT", [])?;
+        }
+        self.conn.execute(
+            "UPDATE assets SET date_basis='metadata' WHERE taken_at IS NOT NULL AND date_basis IS NULL",
+            [],
+        )?;
+        Ok(())
     }
 
     pub fn has_asset(&self, hash: &str) -> rusqlite::Result<bool> {
@@ -121,7 +135,7 @@ impl Db {
     }
 
     pub fn insert_asset(&self, a: &AssetRow) -> rusqlite::Result<()> {
-        self.conn.execute("INSERT INTO assets(hash,kind,taken_at,library_path,imported_at) VALUES(?1,?2,?3,?4,?5)", params![a.hash, a.kind, a.taken_at, a.library_path, chrono::Local::now().to_rfc3339()])?;
+        self.conn.execute("INSERT INTO assets(hash,kind,taken_at,date_basis,library_path,imported_at) VALUES(?1,?2,?3,?4,?5,?6)", params![a.hash, a.kind, a.taken_at, a.taken_at.as_ref().map(|_| "metadata"), a.library_path, chrono::Local::now().to_rfc3339()])?;
         Ok(())
     }
 

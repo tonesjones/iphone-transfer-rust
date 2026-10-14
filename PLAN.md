@@ -104,7 +104,7 @@ Parked with phase 0 (only needed if USB comes back):
   Accept: deleting `library.db` and running reindex restores every asset row, and adopts library
   files the DB doesn't know about (see the crash gap below).
 - [ ] Dedupe report across the whole library.
-- [ ] Date suggestions from original filenames, then source timestamps explicitly labeled as estimates; preview moves, manually date only what remains, and keep unknown dates unknown.
+- [x] Date suggestions from original filenames, then source timestamps explicitly labeled as estimates; preview moves, manually date only what remains, and keep unknown dates unknown.
 - [ ] **Done when:** known dates are organized, uncertainty is visible, and the file catalog rebuilds from disk. Source names and relationships absent from media require the SQLite snapshots.
 
 ## Phase 3: GUI and phase 4: Wi-Fi sync
@@ -193,7 +193,7 @@ Claude reviews every diff, runs the tests, and owns this file and the README. No
   reports duplicates without touching them. Accept: deleting `library.db` and reindexing restores
   every asset and `find` name; a planted file is adopted and `check` is clean; a planted duplicate
   is reported and unchanged; a second run changes nothing.
-- [ ] I4 Dates for undated files (`claude/undated`). `photoxfer dates` writes a preview TSV with
+- [x] I4 Dates for undated files (`claude/undated`). `photoxfer dates` writes a preview TSV with
   source timestamps as labelled estimates; `--apply` moves only rows you filled in, to
   `YYYY/<Month>/YYYY-MM-DD_estimated_<short6>.ext`, recording `date_basis`. Accept: preview
   writes nothing; 2 of 3 filled rows move exactly 2; `check` is clean and hashes are unchanged.

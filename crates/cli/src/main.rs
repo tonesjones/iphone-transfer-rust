@@ -38,6 +38,15 @@ enum Command {
         #[arg(long)]
         to: PathBuf,
     },
+    /// Review estimated dates or apply the dates accepted in a preview.
+    Dates {
+        #[arg(long)]
+        to: PathBuf,
+        #[arg(long, default_value = "undated.tsv")]
+        out: PathBuf,
+        #[arg(long)]
+        apply: Option<PathBuf>,
+    },
     /// Copy verified media and a database snapshot to a separate archive folder.
     Archive {
         #[arg(long = "from")]
@@ -170,6 +179,27 @@ fn main() -> anyhow::Result<()> {
                 println!("{original}\t{}", display_path(&to.join(relative)));
             }
             println!("{} matching source references", matches.len());
+        }
+        Command::Dates { to, out, apply } => {
+            if let Some(tsv) = apply {
+                let report = photoxfer_core::dates::apply(&to, &tsv)?;
+                for (old, new) in &report.moved {
+                    println!("{old} -> {new}");
+                }
+                println!(
+                    "{} files dated, {} left undated. The next archive run moves your second copy to the new paths.",
+                    report.moved.len(),
+                    report.kept_undated
+                );
+                return Ok(());
+            }
+            let rows = photoxfer_core::dates::undated(&to)?;
+            photoxfer_core::dates::write_preview(&rows, &out)?;
+            println!("{} undated files", rows.len());
+            println!("Preview: {}", display_path(&out));
+            println!(
+                "Suggested dates come from file timestamps and are estimates. Fill the `use` column only for dates you trust."
+            );
         }
         Command::Archive { from, to } => {
             let report = photoxfer_core::archive::archive(&from, &to)?;
