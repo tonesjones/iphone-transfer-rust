@@ -187,12 +187,16 @@ pub fn apply(library: &Path, tsv: &Path) -> anyhow::Result<ApplyReport> {
         report
             .moved
             .push((row.path.replace('\\', "/"), moved[0].1.clone()));
-        for (index, (old, _)) in moved.into_iter().enumerate() {
+        for (index, (old, new)) in moved.into_iter().enumerate() {
             let expected = if index == 0 {
                 &row.hash
             } else {
                 &row.sidecars[index - 1].0
             };
+            // Never remove the old path unless the new one still holds the same bytes.
+            checked_file(&library, &new, expected).with_context(|| {
+                format!("committed move, but new path {new} does not match; kept old path {old}")
+            })?;
             checked_file(&library, &old, expected).with_context(|| {
                 format!(
                     "committed move, but old path {old} no longer matches; preserved it; already moved: {:?}",
