@@ -30,25 +30,21 @@ pub(crate) fn folder() -> anyhow::Result<Option<PathBuf>> {
     if initialized != RPC_E_CHANGED_MODE {
         initialized.ok()?;
     }
-    // SAFETY: the standard FileOpenDialog class implements IFileOpenDialog; COM is initialized.
-    let dialog: IFileOpenDialog =
-        unsafe { CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER)? };
-    // SAFETY: valid dialog interface and documented folder/filesystem option flags.
-    unsafe { dialog.SetOptions(FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM)? };
-    // SAFETY: the dialog is live; an ownerless modal dialog is supported.
-    if let Err(error) = unsafe { dialog.Show(None) } {
-        if error.code() == HRESULT::from_win32(ERROR_CANCELLED.0) {
-            return Ok(None);
+    // SAFETY: COM is initialized on this thread, every call uses the live dialog or the item it
+    // returned, and the COM-allocated name is freed once after it is copied into a String.
+    unsafe {
+        let dialog: IFileOpenDialog =
+            CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER)?;
+        dialog.SetOptions(FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM)?;
+        if let Err(error) = dialog.Show(None) {
+            if error.code() == HRESULT::from_win32(ERROR_CANCELLED.0) {
+                return Ok(None);
+            }
+            return Err(error.into());
         }
-        return Err(error.into());
+        let name = dialog.GetResult()?.GetDisplayName(SIGDN_FILESYSPATH)?;
+        let path = name.to_string();
+        CoTaskMemFree(Some(name.0.cast()));
+        Ok(Some(PathBuf::from(path?)))
     }
-    // SAFETY: Show succeeded, so the dialog has a selected shell item.
-    let item = unsafe { dialog.GetResult()? };
-    // SAFETY: the filesystem-only picker provides a filesystem display name.
-    let name = unsafe { item.GetDisplayName(SIGDN_FILESYSPATH)? };
-    // SAFETY: GetDisplayName returns a valid null-terminated UTF-16 allocation.
-    let path = unsafe { name.to_string() };
-    // SAFETY: the name was allocated by COM and is no longer used after conversion.
-    unsafe { CoTaskMemFree(Some(name.0.cast())) };
-    Ok(Some(PathBuf::from(path?)))
 }

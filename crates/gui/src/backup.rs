@@ -63,7 +63,7 @@ pub(crate) fn refuse_restore_folder(
     None
 }
 
-/// Drops the \\?\ prefix that canonicalize adds on Windows.
+/// Drops the `\\?\` prefix that `canonicalize` adds on Windows.
 fn display(path: &Path) -> String {
     let text = path.display().to_string();
     text.strip_prefix(r"\\?\")

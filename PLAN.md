@@ -175,11 +175,14 @@ Picked from a review of open gaps. One branch and PR each. Code is delegated thr
 `/codex-delegate` (Luna for bounded work, Sol for anything that deletes, moves, or uses `unsafe`);
 Claude reviews every diff, runs the tests, and owns this file and the README. No new crates.
 
-- [ ] I1 Restore check in the app (`claude/restore-check`). Card 2 gets **Check a downloaded
+- [x] I1 Restore check in the app (`claude/restore-check`). Card 2 gets **Check a downloaded
   folder…**: a Windows folder picker, then `verify` against the newest `manifests/*.tsv` in that
   folder, on a worker thread. Accept: a copied archive passes; a deleted or corrupted file fails
   and is named; the archive, library, or any OneDrive folder is refused; backup and restore check
   never run at once; the window stays responsive.
+  Done 2026-10-13: you confirmed in the window that a good copy passes and a damaged one fails
+  and names the file. The archive was refused too, but by accident: the picker returned `archive`
+  after the path was pasted, so the message now names the refused folder.
 - [ ] I2 Retention and `.partial` cleanup (`claude/housekeeping`). Keep the newest 10 library
   snapshots and the newest 10 archive recovery sets (snapshot and manifest deleted together).
   Remove leftover `.partial` temp files under the library lock. Accept: 12 snapshots become 10;
