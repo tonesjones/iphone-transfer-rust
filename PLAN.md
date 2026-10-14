@@ -184,21 +184,21 @@ Claude reviews every diff, runs the tests, and owns this file and the README. No
   Done 2026-10-13: you confirmed in the window that a good copy passes and a damaged one fails
   and names the file. The archive was refused too, but by accident: the picker returned `archive`
   after the path was pasted, so the message now names the refused folder.
-- [x] I2 Retention (done 2026-10-14; real cleanup run pending) and `.partial` cleanup (`claude/housekeeping`). Keep the newest 10 library
+- [x] I2 Retention and `.partial` cleanup (`claude/housekeeping`, PR #9). Real run 2026-10-14: 16 archive snapshots became 10. Keep the newest 10 library
   snapshots and the newest 10 archive recovery sets (snapshot and manifest deleted together).
   Remove leftover `.partial` temp files under the library lock. Accept: 12 snapshots become 10;
   unpaired files, media, `library.db`, and other dot-files survive; a failed run prunes nothing.
-- [x] I3 (real run 2026-10-14: 0 added) `photoxfer reindex --to <library>` (`claude/reindex`). Restores a missing `library.db`
+- [x] I3 `photoxfer reindex --to <library>` (`claude/reindex`, PR #11). Real run 2026-10-14: 0 files added. Restores a missing `library.db`
   from the newest snapshot that passes `integrity_check`, then adopts unrecorded library files and
   reports duplicates without touching them. Accept: deleting `library.db` and reindexing restores
   every asset and `find` name; a planted file is adopted and `check` is clean; a planted duplicate
   is reported and unchanged; a second run changes nothing.
-- [x] I4 Dates for undated files (`claude/undated`). `photoxfer dates` writes a preview TSV with
+- [x] I4 Dates for undated files (`claude/undated`, PR #12). Applied moves are also recorded as renames, so the archive follows them. `photoxfer dates` writes a preview TSV with
   source timestamps as labelled estimates; `--apply` moves only rows you filled in, to
   `YYYY/<Month>/YYYY-MM-DD_estimated_<short6>.ext`, recording `date_basis`. Accept: preview
   writes nothing; 2 of 3 filled rows move exactly 2; `check` is clean and hashes are unchanged.
-- [ ] I5 = R10 dependency audit. Waiting on your OK to install `cargo-audit`.
-- [x] I6 (real run 2026-10-14: 26 files passed, pin states unchanged) Automatic cloud test (`claude/cloud-test`). Card 2 gets **Test the cloud copy**, and the
+- [x] I5 = R10 dependency audit. `cargo-audit` 0.22.2 installed 2026-10-14. `cargo audit` on `Cargo.lock` (337 crates) reports no vulnerabilities. Rerun it after any dependency change.
+- [x] I6 Automatic cloud test (`claude/cloud-test`, PR #13). Real run 2026-10-14: 26 files passed and all 133 archive files kept their attributes. Card 2 gets **Test the cloud copy**, and the
   CLI gets `photoxfer cloud-test --archive <dir> [--sample N]`. It samples N files (default 25)
   from the newest manifest, always including the catalog snapshot, and makes them online-only. It
   waits until Windows reports their local bytes gone, then reads them back, which downloads them
@@ -212,7 +212,7 @@ Claude reviews every diff, runs the tests, and owns this file and the README. No
   `attrib +U` evicted it in 1 s (0 bytes on disk, recall-on-access set). `verify` downloaded it
   in 0.6 s, the hash matched, and the file returned to its original unpinned state on its own.
   The manual downloaded-folder check stays as the deeper test.
-- [x] I7 Renamed library files (`claude/rename-follow`). Renaming a file in the library (for
+- [x] I7 Renamed library files (`claude/rename-follow`, PR #10). Real run 2026-10-14: the renamed `Sofi Crypto Receipt.png` was recognised, and the archive moved its copy. Renaming a file in the library (for
   example `2026-10-07_235230_e2360c.png` to `Sofi Crypto Receipt.png`) is recognised by its
   BLAKE3 hash instead of being reported as damage. `import` and `archive` record the new path in
   the catalog and keep both names searchable with `find`; `archive` moves its own copy to the new
@@ -223,39 +223,26 @@ Claude reviews every diff, runs the tests, and owns this file and the README. No
   damage; an unrecorded copy of a file whose original still exists is still reported untracked;
   media bytes never change.
 
-### Status at end of session (2026-10-13)
+### Status at end of session (2026-10-14)
 
-The code for I2, I3, I4, and I6 is written, reviewed, committed, and passing
-`cargo test --workspace`, clippy, and fmt. Each lives on its own worktree branch; none has a PR yet.
+I1 to I7 are done and merged (PRs #8 to #13). Tests, clippy, and fmt pass, and `cargo audit` is clean. The working library has 113 files, `check` is clean, and `Photo Backups` holds 10 recovery sets.
 
-| Item | Branch (worktree) | Commits | State |
-|---|---|---|---|
-| I1 | `claude/restore-check` | PR #8 | Waiting for you to say "merge" (auto-merge is off). No CI checks. |
-| I2 | `codex/housekeeping` (`../wt-codex-housekeeping`) | c080892, 4174f80 | Ready for a PR |
-| I3 | `codex/reindex` (`../wt-codex-reindex`) | fe9d797, cb5b2b6, be82b97 | Ready for a PR. Touches `gui/src/backup.rs` and `db.rs` |
-| I4 | `codex/dates-preview` (`../wt-codex-dates-preview`) | 6dcd347, 43ece2b, 73098c8 | Ready for a PR. Expect conflicts with I3 in `db.rs` and `cli/src/main.rs` |
-| I6 | `codex/cloud-test` (`../wt-codex-cloud-test`) | daaecb5 | Branched from `claude/restore-check`; rebase onto main after #8 merges. Needs its first real run and a README section |
+Two files needed repair on 2026-10-14. You renamed `2026-10-11_174424_493c8c.png` to `Sofi Crypto Receipt.png`, and the next import restored the original name as a duplicate. `2026-10-07_235230_e2360c.png` was also missing from the library. I restored `e2360c` from the archive after checking its hash, and moved the duplicate to the session scratchpad. I7 now recognises renames, so the duplicate does not repeat.
 
-Next steps, in order:
+Next, in order:
 
-1. Squash-merge #8 once you say "merge".
-2. For each of I2, I3, I4, and I6: make a `claude/<name>` branch from the new `main`, cherry-pick
-   the worktree commits, update this file and the README (drop "retention is not implemented";
-   document `reindex`, `dates`, and **Test the cloud copy** / `photoxfer cloud-test`), run
-   `/deslop` and the tests, then `/unslop` the PR text, push, and open the PR. Merge one before
-   starting the next.
-3. Remove each worktree (`git worktree remove`) after its PR lands. Delete the throwaway test
-   folders in the session scratchpad.
+1. Phone completeness (see the checkpoint at the top). Only you can do this one.
+2. A full downloaded-folder check. Download the latest manifest and every file it lists to a folder outside OneDrive, then select **Check a downloaded folder…**. The automatic cloud test samples 25 files, so this is the deeper test.
+3. Manual cleanup of selected photos, only after steps 1 and 2 pass.
+4. Remove the old worktrees (`../wt-codex-*`) with `git worktree remove`, and delete the old `codex/*` branches.
 
-Waiting on your OK:
+Needed later, only if the need appears:
 
-- The first real `cloud-test` on `OneDrive\Photo Backups` (25 photos plus the snapshot), then
-  confirm every file's pin state is unchanged.
-- Real runs of snapshot cleanup (expect exactly 10 snapshots left in `.catalog-backups`, down
-  from 14) and `reindex` (expect nothing to do).
-- Installing `cargo-audit` for I5.
-- A proposed codex-delegate gotcha: `--ephemeral` hides the model, so receipts show
-  `"model": null`; confirm the tier from the log, or skip `--ephemeral` when that check matters.
+- A command to forget a library file that you deleted on purpose. Today `check` fails on a missing file until you restore it.
+- Repair for a damaged library copy (see Known gaps).
+- Phase 0 USB import, still parked.
+
+Open decision: `--ephemeral` hides the model in `codex-delegate` receipts (`"model": null`). Confirm the tier from the log, or skip `--ephemeral` when that check matters. Review this as a Gotchas edit to the skill.
 
 ## Updated run evidence (2026-10-10)
 

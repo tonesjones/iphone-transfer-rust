@@ -37,9 +37,9 @@ For each Live Photo, confirm that both original components are saved. If either 
 
 ### Test the cloud copy automatically
 
-Click **Test the cloud copy** on the second-copy card, or run `photoxfer cloud-test --archive <Photo Backups folder> [--sample N]`. The app picks N files (default 25) from the newest recovery file list, always including the database snapshot, and makes them online-only. It waits until Windows reports their local bytes gone, then reads them back, which downloads them from OneDrive, and compares size and contents. Afterwards it restores each file's original pin state. It never deletes, moves, or writes file contents.
+To test a sample of your cloud copy, click **Test the cloud copy** on the second-copy card, or run `photoxfer cloud-test --archive <Photo Backups folder> [--sample N]`. The test picks N files from the newest recovery file list (25 by default) and always includes the database snapshot. It makes them online-only, waits until Windows reports that their local bytes are gone, and reads them back. The read downloads each file from OneDrive. The test then compares size and contents, and restores each file's original pin state. It never deletes, moves, or writes file contents.
 
-A file that doesn't go online-only before the timeout fails and is named as not uploaded yet. A changed file fails and is named. The folder must be inside OneDrive. The test doesn't run alongside a backup or the downloaded-folder check. Real run on 2026-10-14: 26 files passed. The full manual download below is the deeper test.
+The test fails and names any file that does not go online-only before the timeout (it has not uploaded yet) and any file whose contents changed. The folder must be inside OneDrive. The test does not run while a backup or a downloaded-folder check is running. A sample cannot prove that every file is recoverable, so also run the full download check below.
 
 ### Verify a fresh cloud download
 
@@ -122,20 +122,20 @@ Run the backup again to restore a missing saved copy if the matching source file
 
 If a saved copy is damaged, the app preserves it and stops. Keep the damaged file separately, restore the saved copy from a verified source or archive, and run the checks again. There is no automatic repair command.
 
-Imports save database snapshots in the library's `.catalog-backups` folder. The second copy also keeps snapshots and recovery file lists. After each successful import and archive run, the app keeps the newest 10 library snapshots and the newest 10 recovery sets (snapshot and file list together) and deletes older ones. It also removes leftover `.partial` temporary files from the library. It never deletes media files, and a failed run deletes nothing.
+Imports save database snapshots in the library's `.catalog-backups` folder. The second copy also keeps snapshots and recovery file lists. After a successful import, the app keeps the newest 10 library snapshots and deletes older ones. After a successful archive run, it keeps the newest 10 recovery sets and deletes older ones, removing each snapshot with its file list. It also removes leftover `.partial` temporary files from the library. It never deletes media files, and a failed run deletes nothing.
 
 ## Date photos that have no date
 
-Photos without a capture date sit in `_unsorted`. Run `photoxfer dates --to <library>` to write `undated.tsv`. Each row shows the original names, the source file's created and modified times, and a suggested date, which is an estimate. The preview changes nothing.
+Photos without a capture date stay in `_unsorted`. To review them, run `photoxfer dates --to <library>`. The command writes `undated.tsv` and changes nothing else. Each row lists the original names, the source file's created and modified times, and a suggested date. The suggested date is an estimate.
 
-Fill the `use` column on the rows you accept: copy the suggested date to accept the estimate, or type your own date such as `2022-03-04`, then run `photoxfer dates --to <library> --apply undated.tsv`. Only filled rows move, to `YYYY/<Month>/YYYY-MM-DD_estimated_<id>.ext`, and the catalog records whether each date is an estimate or manual. Rows you leave blank stay undated. Bytes never change, and the next archive run moves the second copy to match.
+To accept a row, fill its `use` column: copy the suggested date to accept the estimate, or type your own date, such as `2022-03-04`. Then run `photoxfer dates --to <library> --apply undated.tsv`. Only filled rows move, to `YYYY/<Month>/YYYY-MM-DD_estimated_<id>.ext`, and the catalog records whether each date is an estimate or manual. Rows you leave blank stay undated. Bytes never change, and the next archive run moves the second copy to match.
 
 ## Rebuild the catalog
 
-If `library.db` is lost or damaged, run `photoxfer reindex --to <library>`. It restores the catalog from the newest snapshot in `.catalog-backups` that passes an integrity check, then adds library files the catalog doesn't know about. It reports duplicates without touching them. It never changes or deletes media, and a second run changes nothing. Real run on 2026-10-14: 0 files added.
+If `library.db` is lost or damaged, run `photoxfer reindex --to <library>`. The command restores the catalog from the newest snapshot in `.catalog-backups` that passes an integrity check. It then adds library files that the catalog does not know about and reports duplicates without touching them. It never changes or deletes media, and a second run changes nothing.
 
 ## Rename files in the saved library
 
-You can rename a saved photo to something you will recognise later, such as `Sofi Crypto Receipt.png`. Keep the file extension and leave the contents alone. The app matches a renamed file to its catalog entry by contents, so `check` stays clean and lists the rename. The next import or archive records the new name, so `find` can search it. The archive moves its own copy to the new name, so it never keeps two copies. Older recovery file lists still use the old name; restore from the newest one.
+You can rename a saved photo to a name you will recognise later, such as `Sofi Crypto Receipt.png`. Keep the file extension and do not edit the contents. The app matches a renamed file to its catalog entry by contents, so `check` stays clean and lists the rename. The next import or archive records the new name, so `find` can search it, and the archive moves its own copy to the new name instead of keeping two. Older recovery file lists still use the old name, so restore from the newest list.
 
 Archive checks read every file's contents. OneDrive may download online-only files during each check. To avoid repeated downloads, select **Always keep on this device** for **Photo Backups** in OneDrive. Keeping the files locally uses computer disk space.
