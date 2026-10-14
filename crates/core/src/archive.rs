@@ -182,6 +182,33 @@ pub fn verify_with_progress(
     progress: &mut dyn FnMut(f32),
 ) -> anyhow::Result<usize> {
     let root = fs::canonicalize(root)?;
+    let records = manifest_lines(manifest)?;
+    let mut count = 0;
+    for line in &records {
+        progress(count as f32 / records.len() as f32);
+        let record = manifest_record(&root, line)?;
+        if fs::metadata(&record.path)?.len() != record.size
+            || hash::hash_file(&record.path)? != record.hash
+        {
+            bail!("archive verification failed: {}", record.relative);
+        }
+        count += 1;
+    }
+    if count == 0 {
+        bail!("manifest contains no files");
+    }
+    progress(1.0);
+    Ok(count)
+}
+
+pub(crate) struct ManifestRecord {
+    pub hash: String,
+    pub size: u64,
+    pub relative: String,
+    pub path: PathBuf,
+}
+
+pub(crate) fn manifest_lines(manifest: &Path) -> anyhow::Result<Vec<String>> {
     let text = fs::read_to_string(manifest)?;
     let mut lines = text.lines();
     if lines.next() != Some("photoxfer-blake3-v1") {
@@ -196,28 +223,25 @@ pub fn verify_with_progress(
     if records.len() != expected_count {
         bail!("manifest is incomplete: file count differs");
     }
-    let mut count = 0;
-    for line in &records {
-        progress(count as f32 / records.len() as f32);
-        let fields: Vec<_> = line.splitn(3, '\t').collect();
-        if fields.len() != 3 {
-            bail!("invalid manifest record");
-        }
-        let expected_size: u64 = fields[1].parse()?;
-        let relative = relative_path(fields[2])?;
-        let path = fs::canonicalize(root.join(relative))
-            .with_context(|| format!("missing archive file: {}", fields[2]))?;
-        if !path.starts_with(&root) {
-            bail!("archive path leaves restore folder");
-        }
-        if fs::metadata(&path)?.len() != expected_size || hash::hash_file(&path)? != fields[0] {
-            bail!("archive verification failed: {}", fields[2]);
-        }
-        count += 1;
+    Ok(records.into_iter().map(str::to_owned).collect())
+}
+
+pub(crate) fn manifest_record(root: &Path, line: &str) -> anyhow::Result<ManifestRecord> {
+    let fields: Vec<_> = line.splitn(3, '\t').collect();
+    if fields.len() != 3 {
+        bail!("invalid manifest record");
     }
-    if count == 0 {
-        bail!("manifest contains no files");
+    let expected_size: u64 = fields[1].parse()?;
+    let relative = relative_path(fields[2])?;
+    let path = fs::canonicalize(root.join(relative))
+        .with_context(|| format!("missing archive file: {}", fields[2]))?;
+    if !path.starts_with(root) {
+        bail!("archive path leaves restore folder");
     }
-    progress(1.0);
-    Ok(count)
+    Ok(ManifestRecord {
+        hash: fields[0].into(),
+        size: expected_size,
+        relative: fields[2].into(),
+        path,
+    })
 }

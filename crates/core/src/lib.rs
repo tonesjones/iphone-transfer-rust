@@ -1,5 +1,6 @@
 pub mod archive;
 pub mod check;
+pub mod cloud;
 pub mod dates;
 pub mod db;
 pub mod hash;
