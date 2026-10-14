@@ -45,7 +45,10 @@ pub(crate) fn refuse_restore_folder(
     for root in blocked.into_iter().flatten() {
         match std::fs::canonicalize(root) {
             Ok(root) if folder.starts_with(&root) => {
-                return Some("This folder is on this computer's OneDrive or backup folders, so it doesn't test the cloud copy. Download to a folder outside OneDrive, such as C:\\PhotoXfer-Restore.".into());
+                return Some(format!(
+                    "{} is on this computer's OneDrive or backup folders, so it doesn't test the cloud copy. Download to a folder outside OneDrive, such as C:\\PhotoXfer-Restore.",
+                    display(&folder)
+                ));
             }
             Ok(_) => {}
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
@@ -58,6 +61,14 @@ pub(crate) fn refuse_restore_folder(
         }
     }
     None
+}
+
+/// Drops the \\?\ prefix that canonicalize adds on Windows.
+fn display(path: &Path) -> String {
+    let text = path.display().to_string();
+    text.strip_prefix(r"\\?\")
+        .map(str::to_owned)
+        .unwrap_or(text)
 }
 
 pub(crate) fn run_restore(folder: &Path, manifest: &Path, mut report: impl FnMut(RestoreEvent)) {
