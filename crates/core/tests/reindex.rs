@@ -148,7 +148,7 @@ fn duplicate_is_reported_and_both_copies_are_preserved() {
 }
 
 #[test]
-fn adopts_unrecorded_media_and_repeat_changes_only_the_snapshot() {
+fn adopts_unrecorded_media_and_repeat_changes_nothing() {
     let (_temp, source, library) = setup();
     let extra = "_unsorted/new.PNG";
     fs::write(library.join(extra), b"new media").unwrap();
@@ -170,7 +170,7 @@ fn adopts_unrecorded_media_and_repeat_changes_only_the_snapshot() {
     assert!(report.restored_from.is_none());
     assert_eq!(catalog(&open(&library)), before);
     assert_eq!(fs::read(library.join("library.db")).unwrap(), db_bytes);
-    assert_eq!(snapshots(&library).len(), backup_count + 1);
+    assert_eq!(snapshots(&library).len(), backup_count);
 }
 
 #[test]
