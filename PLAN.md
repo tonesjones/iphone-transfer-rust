@@ -173,7 +173,8 @@ Desktop redesign (2026-10-10, `claude/desktop-redesign`):
 
 Picked from a review of open gaps. One branch and PR each. Code is delegated through
 `/codex-delegate` (Luna for bounded work, Sol for anything that deletes, moves, or uses `unsafe`);
-Claude reviews every diff, runs the tests, and owns this file and the README. No new crates.
+Claude reviews every diff, runs the tests, and owns this file and the README. No new crates
+(I6 adds the workspace's existing `windows` crate to core for Windows builds).
 
 - [x] I1 Restore check in the app (`claude/restore-check`). Card 2 gets **Check a downloaded
   folder…**: a Windows folder picker, then `verify` against the newest `manifests/*.tsv` in that
@@ -197,6 +198,20 @@ Claude reviews every diff, runs the tests, and owns this file and the README. No
   `YYYY/<Month>/YYYY-MM-DD_estimated_<short6>.ext`, recording `date_basis`. Accept: preview
   writes nothing; 2 of 3 filled rows move exactly 2; `check` is clean and hashes are unchanged.
 - [ ] I5 = R10 dependency audit. Waiting on your OK to install `cargo-audit`.
+- [ ] I6 Automatic cloud test (`claude/cloud-test`). Card 2 gets **Test the cloud copy**, and the
+  CLI gets `photoxfer cloud-test --archive <dir> [--sample N]`. It samples N files (default 25)
+  from the newest manifest, always including the catalog snapshot, and makes them online-only. It
+  waits until Windows reports their local bytes gone, then reads them back, which downloads them
+  from OneDrive, and compares size and BLAKE3. Afterwards it restores each file's original pin
+  state. It never deletes, moves, or writes file contents. Accept: a file that doesn't go
+  online-only within the timeout fails and is named as not uploaded yet; a changed file fails and
+  is named; pin states match before and after; an archive outside OneDrive is refused; it never
+  runs alongside a backup or the downloaded-folder check. Unit tests cover sampling, and the
+  eviction and pin calls sit behind a small interface that the tests replace.
+  Trial 2026-10-13 on one real archive file (`2017/August/2017-08-10_222227_8a4ff5.jpeg`):
+  `attrib +U` evicted it in 1 s (0 bytes on disk, recall-on-access set). `verify` downloaded it
+  in 0.6 s, the hash matched, and the file returned to its original unpinned state on its own.
+  The manual downloaded-folder check stays as the deeper test.
 
 ## Updated run evidence (2026-10-10)
 
