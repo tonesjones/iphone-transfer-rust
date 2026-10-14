@@ -2,6 +2,7 @@ pub mod archive;
 pub mod check;
 pub mod db;
 pub mod hash;
+pub mod housekeeping;
 pub mod import;
 pub mod layout;
 pub mod metadata;

@@ -6,6 +6,7 @@ use crate::{
     check,
     db::Db,
     hash,
+    housekeeping::{KEEP, prune_recovery_sets, remove_partials},
     import::{copy_verified, lock_library},
 };
 use anyhow::{Context, bail};
@@ -136,6 +137,8 @@ pub fn archive_with_progress(
     verify_with_progress(&destination, &manifest_path, &mut |done| {
         progress(0.8 + 0.2 * done)
     })?;
+    prune_recovery_sets(&destination, KEEP)?;
+    remove_partials(&destination)?;
     Ok(ArchiveReport {
         copied,
         verified: records.len(),

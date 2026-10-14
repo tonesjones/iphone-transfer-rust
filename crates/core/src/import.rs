@@ -5,7 +5,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::{
     db::{AssetRow, Db},
-    hash, layout,
+    hash,
+    housekeeping::{KEEP, prune_snapshots, remove_partials},
+    layout,
     metadata::{self, MediaKind},
     pairing,
 };
@@ -228,6 +230,8 @@ pub fn import_folder_with_progress(
     )?;
     if report.failed == 0 {
         db.snapshot(&library.join(".catalog-backups"))?;
+        remove_partials(&library)?;
+        prune_snapshots(&library.join(".catalog-backups"), KEEP)?;
     }
     Ok(report)
 }
