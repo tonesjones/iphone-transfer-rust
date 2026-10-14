@@ -187,7 +187,7 @@ fn main() -> anyhow::Result<()> {
                     println!("{old} -> {new}");
                 }
                 println!(
-                    "{} files dated, {} left undated. Your second copy keeps its old copies and gains the new paths on the next backup.",
+                    "{} files dated, {} left undated. The next archive run moves your second copy to the new paths.",
                     report.moved.len(),
                     report.kept_undated
                 );

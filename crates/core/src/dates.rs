@@ -145,6 +145,10 @@ pub fn apply(library: &Path, tsv: &Path) -> anyhow::Result<ApplyReport> {
                     row.hash
                 ],
             )?;
+            tx.execute(
+                "INSERT OR IGNORE INTO renames(hash,old_path,new_path) VALUES(?1,?2,?3)",
+                params![row.hash, row.path, relative],
+            )?;
             for (sidecar_hash, old_relative) in &row.sidecars {
                 let old = library.join(old_relative);
                 let ext = old
@@ -162,6 +166,10 @@ pub fn apply(library: &Path, tsv: &Path) -> anyhow::Result<ApplyReport> {
                 tx.execute(
                     "UPDATE sidecars SET library_path=?1 WHERE sidecar_hash=?2 AND asset_hash=?3",
                     params![relative, sidecar_hash, row.hash],
+                )?;
+                tx.execute(
+                    "INSERT OR IGNORE INTO renames(hash,old_path,new_path) VALUES(?1,?2,?3)",
+                    params![sidecar_hash, old_relative, relative],
                 )?;
                 moved.push((old_relative.clone(), relative));
             }

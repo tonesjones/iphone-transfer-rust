@@ -118,6 +118,12 @@ If a saved copy is damaged, the app preserves it and stops. Keep the damaged fil
 
 Imports save database snapshots in the library's `.catalog-backups` folder. The second copy also keeps snapshots and recovery file lists. After each successful import and archive run, the app keeps the newest 10 library snapshots and the newest 10 recovery sets (snapshot and file list together) and deletes older ones. It also removes leftover `.partial` temporary files from the library. It never deletes media files, and a failed run deletes nothing.
 
+## Date photos that have no date
+
+Photos without a capture date sit in `_unsorted`. Run `photoxfer dates --to <library>` to write `undated.tsv`. Each row shows the original names, the source file's created and modified times, and a suggested date, which is an estimate. The preview changes nothing.
+
+Fill the `use` column on the rows you accept: copy the suggested date to accept the estimate, or type your own date such as `2022-03-04`, then run `photoxfer dates --to <library> --apply undated.tsv`. Only filled rows move, to `YYYY/<Month>/YYYY-MM-DD_estimated_<id>.ext`, and the catalog records whether each date is an estimate or manual. Rows you leave blank stay undated. Bytes never change, and the next archive run moves the second copy to match.
+
 ## Rebuild the catalog
 
 If `library.db` is lost or damaged, run `photoxfer reindex --to <library>`. It restores the catalog from the newest snapshot in `.catalog-backups` that passes an integrity check, then adds library files the catalog doesn't know about. It reports duplicates without touching them. It never changes or deletes media, and a second run changes nothing. Real run on 2026-10-14: 0 files added.

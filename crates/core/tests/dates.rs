@@ -456,3 +456,19 @@ fn sidecar_damage_link_collision_and_transaction_failure_preserve_old_files() {
         }
     }
 }
+
+#[test]
+fn archive_follows_applied_dates() {
+    let (temp, _inbox, library) = setup(1);
+    let archive = temp.path().join("archive");
+    photoxfer_core::archive::archive(&library, &archive).unwrap();
+    let tsv = temp.path().join("dates.tsv");
+    let paths = preview(&library, &tsv, &["2021-02-03 04:05:06"]);
+    let report = dates::apply(&library, &tsv).unwrap();
+    let new = &report.moved[0].1;
+    let second = photoxfer_core::archive::archive(&library, &archive).unwrap();
+    assert_eq!(second.copied, 0);
+    assert!(archive.join(new).is_file());
+    assert!(!archive.join(&paths[0]).exists());
+    photoxfer_core::archive::verify(&archive, &second.manifest).unwrap();
+}
