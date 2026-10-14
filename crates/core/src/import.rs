@@ -229,9 +229,9 @@ pub fn import_folder_with_progress(
         &report.errors.join("\n"),
     )?;
     if report.failed == 0 {
-        db.snapshot(&library.join(".catalog-backups"))?;
+        let snapshot = db.snapshot(&library.join(".catalog-backups"))?;
         remove_partials(&library)?;
-        prune_snapshots(&library.join(".catalog-backups"), KEEP)?;
+        prune_snapshots(&library.join(".catalog-backups"), KEEP, &snapshot)?;
     }
     Ok(report)
 }
