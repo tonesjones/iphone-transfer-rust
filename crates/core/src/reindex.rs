@@ -28,7 +28,6 @@ pub fn reindex(library: &Path) -> anyhow::Result<ReindexReport> {
         report.restored_from = restore_snapshot(&library, &db_path)?;
     }
     let db = Db::open(&db_path)?;
-    db.snapshot(&library.join(".catalog-backups"))?;
 
     let recorded: HashMap<_, _> = db
         .recorded_files()?
@@ -60,6 +59,7 @@ pub fn reindex(library: &Path) -> anyhow::Result<ReindexReport> {
         return Ok(report);
     }
 
+    db.snapshot(&library.join(".catalog-backups"))?;
     let transaction = db.conn.unchecked_transaction()?;
     // Keep recorded partners in groups so a newly found MOV or AAE can attach to them.
     for group in pairing::group_files(&files) {
@@ -157,7 +157,13 @@ fn restore_snapshot(library: &Path, db_path: &Path) -> anyhow::Result<Option<Pat
                 .prepare("PRAGMA integrity_check")?
                 .query_map([], |row| row.get(0))?
                 .collect::<rusqlite::Result<_>>()?;
-            Ok(results == ["ok"])
+            // An empty file left by a failed snapshot also passes integrity_check.
+            let has_catalog: bool = db.conn.query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='assets')",
+                [],
+                |row| row.get(0),
+            )?;
+            Ok(results == ["ok"] && has_catalog)
         })();
         if !matches!(usable, Ok(true)) {
             continue;
