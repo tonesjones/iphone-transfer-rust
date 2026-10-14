@@ -169,6 +169,32 @@ Desktop redesign (2026-10-10, `claude/desktop-redesign`):
   often each step reads every file.
 - [ ] Real run from the desktop shortcut on the real folders (not done by Claude).
 
+## Improvements (2026-10-13)
+
+Picked from a review of open gaps. One branch and PR each. Code is delegated through
+`/codex-delegate` (Luna for bounded work, Sol for anything that deletes, moves, or uses `unsafe`);
+Claude reviews every diff, runs the tests, and owns this file and the README. No new crates.
+
+- [ ] I1 Restore check in the app (`claude/restore-check`). Card 2 gets **Check a downloaded
+  folder…**: a Windows folder picker, then `verify` against the newest `manifests/*.tsv` in that
+  folder, on a worker thread. Accept: a copied archive passes; a deleted or corrupted file fails
+  and is named; the archive, library, or any OneDrive folder is refused; backup and restore check
+  never run at once; the window stays responsive.
+- [ ] I2 Retention and `.partial` cleanup (`claude/housekeeping`). Keep the newest 10 library
+  snapshots and the newest 10 archive recovery sets (snapshot and manifest deleted together).
+  Remove leftover `.partial` temp files under the library lock. Accept: 12 snapshots become 10;
+  unpaired files, media, `library.db`, and other dot-files survive; a failed run prunes nothing.
+- [ ] I3 `photoxfer reindex --to <library>` (`claude/reindex`). Restores a missing `library.db`
+  from the newest snapshot that passes `integrity_check`, then adopts unrecorded library files and
+  reports duplicates without touching them. Accept: deleting `library.db` and reindexing restores
+  every asset and `find` name; a planted file is adopted and `check` is clean; a planted duplicate
+  is reported and unchanged; a second run changes nothing.
+- [ ] I4 Dates for undated files (`claude/undated`). `photoxfer dates` writes a preview TSV with
+  source timestamps as labelled estimates; `--apply` moves only rows you filled in, to
+  `YYYY/<Month>/YYYY-MM-DD_estimated_<short6>.ext`, recording `date_basis`. Accept: preview
+  writes nothing; 2 of 3 filled rows move exactly 2; `check` is clean and hashes are unchanged.
+- [ ] I5 = R10 dependency audit. Waiting on your OK to install `cargo-audit`.
+
 ## Updated run evidence (2026-10-10)
 
 - Imported IMG_3353.PNG: copied 1, verified/skipped 101. Current library has 111 assets; 31 are undated.
