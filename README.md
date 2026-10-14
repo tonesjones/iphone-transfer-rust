@@ -118,6 +118,10 @@ If a saved copy is damaged, the app preserves it and stops. Keep the damaged fil
 
 Imports save database snapshots in the library's `.catalog-backups` folder. The second copy also keeps snapshots and recovery file lists. After each successful import and archive run, the app keeps the newest 10 library snapshots and the newest 10 recovery sets (snapshot and file list together) and deletes older ones. It also removes leftover `.partial` temporary files from the library. It never deletes media files, and a failed run deletes nothing.
 
+## Rebuild the catalog
+
+If `library.db` is lost or damaged, run `photoxfer reindex --to <library>`. It restores the catalog from the newest snapshot in `.catalog-backups` that passes an integrity check, then adds library files the catalog doesn't know about. It reports duplicates without touching them. It never changes or deletes media, and a second run changes nothing. Real run on 2026-10-14: 0 files added.
+
 ## Rename files in the saved library
 
 You can rename a saved photo to something you will recognise later, such as `Sofi Crypto Receipt.png`. Keep the file extension and leave the contents alone. The app matches a renamed file to its catalog entry by contents, so `check` stays clean and lists the rename. The next import or archive records the new name, so `find` can search it. The archive moves its own copy to the new name, so it never keeps two copies. Older recovery file lists still use the old name; restore from the newest one.

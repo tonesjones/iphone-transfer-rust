@@ -52,7 +52,10 @@ impl Db {
             .open(&path)
             .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
         drop(reservation);
-        self.conn.backup("main", &path, None)?;
+        if let Err(error) = self.conn.backup("main", &path, None) {
+            let _ = std::fs::remove_file(&path);
+            return Err(error);
+        }
         Ok(path)
     }
 

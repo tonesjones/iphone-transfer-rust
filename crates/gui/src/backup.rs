@@ -138,6 +138,12 @@ pub fn run(folders: &Folders, mut report: impl FnMut(Event)) {
                     .iter()
                     .map(|p| format!("Not in catalog: {}", p.display())),
             );
+            if !checked.untracked.is_empty() {
+                problems.push(format!(
+                    "Repair the catalog: photoxfer reindex --to \"{}\"",
+                    folders.library.display()
+                ));
+            }
             bail!(
                 "Your saved library needs attention.\n{}",
                 problems.join("\n")

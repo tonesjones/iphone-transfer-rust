@@ -100,7 +100,7 @@ Parked with phase 0 (only needed if USB comes back):
 
 - [x] EXIF/QuickTime date extraction with `_unsorted` as the fallback (pulled into phase 1).
 - [x] File into `YYYY/<Month name>` (e.g. `2026/October`, changed from `YYYY/MM` on 2026-10-10) with `capture-time_shorthash` names (pulled into phase 1).
-- [ ] `photoxfer reindex` rebuilds the database from the library folder.
+- [x] `photoxfer reindex` rebuilds the database from the library folder.
   Accept: deleting `library.db` and running reindex restores every asset row, and adopts library
   files the DB doesn't know about (see the crash gap below).
 - [ ] Dedupe report across the whole library.
@@ -188,7 +188,7 @@ Claude reviews every diff, runs the tests, and owns this file and the README. No
   snapshots and the newest 10 archive recovery sets (snapshot and manifest deleted together).
   Remove leftover `.partial` temp files under the library lock. Accept: 12 snapshots become 10;
   unpaired files, media, `library.db`, and other dot-files survive; a failed run prunes nothing.
-- [ ] I3 `photoxfer reindex --to <library>` (`claude/reindex`). Restores a missing `library.db`
+- [x] I3 (real run 2026-10-14: 0 added) `photoxfer reindex --to <library>` (`claude/reindex`). Restores a missing `library.db`
   from the newest snapshot that passes `integrity_check`, then adopts unrecorded library files and
   reports duplicates without touching them. Accept: deleting `library.db` and reindexing restores
   every asset and `find` name; a planted file is adopted and `check` is clean; a planted duplicate
@@ -289,6 +289,6 @@ Waiting on your OK:
 - Archive verification reads every saved file. OneDrive may download online-only files during these checks. Keep full hash verification; keeping the archive available locally avoids repeated downloads at the cost of disk space.
 - Source paths currently retain Windows' extended-path prefix. This affects presentation only; a later display cleanup can omit it without changing stored paths.
 - A crash between publishing a library file and its DB insert leaves an unrecorded file. A rerun
-  copies it again under a `-1` name. `reindex` (phase 2) is the planned cleanup.
+  copies it again under a `-1` name. `reindex` now adopts such files.
 - Directory entries aren't fsynced after publishing.
 - Two photos with byte-identical AAE files: the AAE links to the first photo only.

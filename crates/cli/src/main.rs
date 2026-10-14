@@ -27,6 +27,11 @@ enum Command {
         #[arg(long = "to", required = true)]
         to: PathBuf,
     },
+    /// Rebuild or repair library.db from the library folder.
+    Reindex {
+        #[arg(long)]
+        to: PathBuf,
+    },
     /// Find a saved file by its original name or source path.
     Find {
         text: String,
@@ -119,10 +124,42 @@ fn main() -> anyhow::Result<()> {
             for path in &report.untracked {
                 println!("File missing from the catalog: {}", display_path(path));
             }
+            if !report.untracked.is_empty() {
+                println!(
+                    "Repair the catalog: photoxfer reindex --to \"{}\"",
+                    display_path(&to)
+                );
+            }
             for error in &report.errors {
                 println!("Could not read: {error}");
             }
             if !clean {
+                std::process::exit(1);
+            }
+        }
+        Command::Reindex { to } => {
+            let report = photoxfer_core::reindex::reindex(&to)?;
+            if let Some(snapshot) = &report.restored_from {
+                println!("Catalog restored from: {}", display_path(snapshot));
+            }
+            println!("Files added to the catalog: {}", report.adopted.len());
+            for path in &report.adopted {
+                println!("Added: {}", display_path(&to.join(path)));
+            }
+            for (extra, recorded) in &report.duplicates {
+                println!(
+                    "Duplicate: {} matches {}",
+                    display_path(&to.join(extra)),
+                    display_path(&to.join(recorded))
+                );
+            }
+            if !report.duplicates.is_empty() {
+                println!("Both copies are kept. Compare them, then remove the extra one yourself.");
+            }
+            for error in &report.errors {
+                println!("Could not read: {error}");
+            }
+            if !report.errors.is_empty() {
                 std::process::exit(1);
             }
         }
