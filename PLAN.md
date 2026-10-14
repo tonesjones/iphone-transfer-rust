@@ -213,6 +213,40 @@ Claude reviews every diff, runs the tests, and owns this file and the README. No
   in 0.6 s, the hash matched, and the file returned to its original unpinned state on its own.
   The manual downloaded-folder check stays as the deeper test.
 
+### Status at end of session (2026-10-13)
+
+The code for I2, I3, I4, and I6 is written, reviewed, committed, and passing
+`cargo test --workspace`, clippy, and fmt. Each lives on its own worktree branch; none has a PR yet.
+
+| Item | Branch (worktree) | Commits | State |
+|---|---|---|---|
+| I1 | `claude/restore-check` | PR #8 | Waiting for you to say "merge" (auto-merge is off). No CI checks. |
+| I2 | `codex/housekeeping` (`../wt-codex-housekeeping`) | c080892, 4174f80 | Ready for a PR |
+| I3 | `codex/reindex` (`../wt-codex-reindex`) | fe9d797, cb5b2b6, be82b97 | Ready for a PR. Touches `gui/src/backup.rs` and `db.rs` |
+| I4 | `codex/dates-preview` (`../wt-codex-dates-preview`) | 6dcd347, 43ece2b, 73098c8 | Ready for a PR. Expect conflicts with I3 in `db.rs` and `cli/src/main.rs` |
+| I6 | `codex/cloud-test` (`../wt-codex-cloud-test`) | daaecb5 | Branched from `claude/restore-check`; rebase onto main after #8 merges. Needs its first real run and a README section |
+
+Next steps, in order:
+
+1. Squash-merge #8 once you say "merge".
+2. For each of I2, I3, I4, and I6: make a `claude/<name>` branch from the new `main`, cherry-pick
+   the worktree commits, update this file and the README (drop "retention is not implemented";
+   document `reindex`, `dates`, and **Test the cloud copy** / `photoxfer cloud-test`), run
+   `/deslop` and the tests, then `/unslop` the PR text, push, and open the PR. Merge one before
+   starting the next.
+3. Remove each worktree (`git worktree remove`) after its PR lands. Delete the throwaway test
+   folders in the session scratchpad.
+
+Waiting on your OK:
+
+- The first real `cloud-test` on `OneDrive\Photo Backups` (25 photos plus the snapshot), then
+  confirm every file's pin state is unchanged.
+- Real runs of snapshot cleanup (expect exactly 10 snapshots left in `.catalog-backups`, down
+  from 14) and `reindex` (expect nothing to do).
+- Installing `cargo-audit` for I5.
+- A proposed codex-delegate gotcha: `--ephemeral` hides the model, so receipts show
+  `"model": null`; confirm the tier from the log, or skip `--ephemeral` when that check matters.
+
 ## Updated run evidence (2026-10-10)
 
 - Imported IMG_3353.PNG: copied 1, verified/skipped 101. Current library has 111 assets; 31 are undated.
