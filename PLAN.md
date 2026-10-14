@@ -169,6 +169,84 @@ Desktop redesign (2026-10-10, `claude/desktop-redesign`):
   often each step reads every file.
 - [ ] Real run from the desktop shortcut on the real folders (not done by Claude).
 
+## Improvements (2026-10-13)
+
+Picked from a review of open gaps. One branch and PR each. Code is delegated through
+`/codex-delegate` (Luna for bounded work, Sol for anything that deletes, moves, or uses `unsafe`);
+Claude reviews every diff, runs the tests, and owns this file and the README. No new crates
+(I6 adds the workspace's existing `windows` crate to core for Windows builds).
+
+- [x] I1 Restore check in the app (`claude/restore-check`). Card 2 gets **Check a downloaded
+  folder…**: a Windows folder picker, then `verify` against the newest `manifests/*.tsv` in that
+  folder, on a worker thread. Accept: a copied archive passes; a deleted or corrupted file fails
+  and is named; the archive, library, or any OneDrive folder is refused; backup and restore check
+  never run at once; the window stays responsive.
+  Done 2026-10-13: you confirmed in the window that a good copy passes and a damaged one fails
+  and names the file. The archive was refused too, but by accident: the picker returned `archive`
+  after the path was pasted, so the message now names the refused folder.
+- [ ] I2 Retention and `.partial` cleanup (`claude/housekeeping`). Keep the newest 10 library
+  snapshots and the newest 10 archive recovery sets (snapshot and manifest deleted together).
+  Remove leftover `.partial` temp files under the library lock. Accept: 12 snapshots become 10;
+  unpaired files, media, `library.db`, and other dot-files survive; a failed run prunes nothing.
+- [ ] I3 `photoxfer reindex --to <library>` (`claude/reindex`). Restores a missing `library.db`
+  from the newest snapshot that passes `integrity_check`, then adopts unrecorded library files and
+  reports duplicates without touching them. Accept: deleting `library.db` and reindexing restores
+  every asset and `find` name; a planted file is adopted and `check` is clean; a planted duplicate
+  is reported and unchanged; a second run changes nothing.
+- [ ] I4 Dates for undated files (`claude/undated`). `photoxfer dates` writes a preview TSV with
+  source timestamps as labelled estimates; `--apply` moves only rows you filled in, to
+  `YYYY/<Month>/YYYY-MM-DD_estimated_<short6>.ext`, recording `date_basis`. Accept: preview
+  writes nothing; 2 of 3 filled rows move exactly 2; `check` is clean and hashes are unchanged.
+- [ ] I5 = R10 dependency audit. Waiting on your OK to install `cargo-audit`.
+- [ ] I6 Automatic cloud test (`claude/cloud-test`). Card 2 gets **Test the cloud copy**, and the
+  CLI gets `photoxfer cloud-test --archive <dir> [--sample N]`. It samples N files (default 25)
+  from the newest manifest, always including the catalog snapshot, and makes them online-only. It
+  waits until Windows reports their local bytes gone, then reads them back, which downloads them
+  from OneDrive, and compares size and BLAKE3. Afterwards it restores each file's original pin
+  state. It never deletes, moves, or writes file contents. Accept: a file that doesn't go
+  online-only within the timeout fails and is named as not uploaded yet; a changed file fails and
+  is named; pin states match before and after; an archive outside OneDrive is refused; it never
+  runs alongside a backup or the downloaded-folder check. Unit tests cover sampling, and the
+  eviction and pin calls sit behind a small interface that the tests replace.
+  Trial 2026-10-13 on one real archive file (`2017/August/2017-08-10_222227_8a4ff5.jpeg`):
+  `attrib +U` evicted it in 1 s (0 bytes on disk, recall-on-access set). `verify` downloaded it
+  in 0.6 s, the hash matched, and the file returned to its original unpinned state on its own.
+  The manual downloaded-folder check stays as the deeper test.
+
+### Status at end of session (2026-10-13)
+
+The code for I2, I3, I4, and I6 is written, reviewed, committed, and passing
+`cargo test --workspace`, clippy, and fmt. Each lives on its own worktree branch; none has a PR yet.
+
+| Item | Branch (worktree) | Commits | State |
+|---|---|---|---|
+| I1 | `claude/restore-check` | PR #8 | Waiting for you to say "merge" (auto-merge is off). No CI checks. |
+| I2 | `codex/housekeeping` (`../wt-codex-housekeeping`) | c080892, 4174f80 | Ready for a PR |
+| I3 | `codex/reindex` (`../wt-codex-reindex`) | fe9d797, cb5b2b6, be82b97 | Ready for a PR. Touches `gui/src/backup.rs` and `db.rs` |
+| I4 | `codex/dates-preview` (`../wt-codex-dates-preview`) | 6dcd347, 43ece2b, 73098c8 | Ready for a PR. Expect conflicts with I3 in `db.rs` and `cli/src/main.rs` |
+| I6 | `codex/cloud-test` (`../wt-codex-cloud-test`) | daaecb5 | Branched from `claude/restore-check`; rebase onto main after #8 merges. Needs its first real run and a README section |
+
+Next steps, in order:
+
+1. Squash-merge #8 once you say "merge".
+2. For each of I2, I3, I4, and I6: make a `claude/<name>` branch from the new `main`, cherry-pick
+   the worktree commits, update this file and the README (drop "retention is not implemented";
+   document `reindex`, `dates`, and **Test the cloud copy** / `photoxfer cloud-test`), run
+   `/deslop` and the tests, then `/unslop` the PR text, push, and open the PR. Merge one before
+   starting the next.
+3. Remove each worktree (`git worktree remove`) after its PR lands. Delete the throwaway test
+   folders in the session scratchpad.
+
+Waiting on your OK:
+
+- The first real `cloud-test` on `OneDrive\Photo Backups` (25 photos plus the snapshot), then
+  confirm every file's pin state is unchanged.
+- Real runs of snapshot cleanup (expect exactly 10 snapshots left in `.catalog-backups`, down
+  from 14) and `reindex` (expect nothing to do).
+- Installing `cargo-audit` for I5.
+- A proposed codex-delegate gotcha: `--ephemeral` hides the model, so receipts show
+  `"model": null`; confirm the tier from the log, or skip `--ephemeral` when that check matters.
+
 ## Updated run evidence (2026-10-10)
 
 - Imported IMG_3353.PNG: copied 1, verified/skipped 101. Current library has 111 assets; 31 are undated.

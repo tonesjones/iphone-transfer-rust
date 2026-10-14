@@ -17,6 +17,24 @@ pub struct ArchiveReport {
     pub manifest: PathBuf,
 }
 
+/// Return the newest archive manifest in `root`, if one exists.
+pub fn latest_manifest(root: &Path) -> Option<PathBuf> {
+    let manifests = root.join("manifests");
+    fs::read_dir(manifests)
+        .ok()?
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let file_type = entry.file_type().ok()?;
+            if !file_type.is_file() {
+                return None;
+            }
+            let name = entry.file_name();
+            let name = name.to_str()?;
+            (name.starts_with("library-") && name.ends_with(".tsv")).then(|| entry.path())
+        })
+        .max_by(|a, b| a.file_name().cmp(&b.file_name()))
+}
+
 fn relative_path(text: &str) -> anyhow::Result<&Path> {
     let path = Path::new(text);
     if text.contains(['\t', '\n', '\r'])
@@ -130,7 +148,8 @@ pub fn verify(root: &Path, manifest: &Path) -> anyhow::Result<usize> {
     verify_with_progress(root, manifest, &mut |_| {})
 }
 
-fn verify_with_progress(
+/// Verify a manifest while reporting progress from zero to one.
+pub fn verify_with_progress(
     root: &Path,
     manifest: &Path,
     progress: &mut dyn FnMut(f32),

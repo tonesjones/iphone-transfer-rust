@@ -2,11 +2,13 @@
 
 mod backup;
 mod icon;
+#[cfg(windows)]
+mod picker;
 mod stage;
 mod theme;
 
 use anyhow::Context;
-use backup::{Event, Folders};
+use backup::{Event, Folders, RestoreEvent};
 use clap::Parser;
 use eframe::egui::{self, Align2, Color32, CursorIcon, RichText, Sense, Stroke, Vec2};
 use std::{path::PathBuf, sync::mpsc};
@@ -67,11 +69,18 @@ struct App {
     shown_progress: f32,
     /// Files the last backup saved to the library.
     saved: Vec<PathBuf>,
+    recovery_manifest: Option<PathBuf>,
+    restore_receiver: Option<mpsc::Receiver<RestoreEvent>>,
+    restore_running: bool,
+    restore_progress: f32,
+    restore_result: Option<RestoreEvent>,
+    restore_error: Option<String>,
 }
 
 impl App {
     fn new(folders: Folders) -> Self {
         Self {
+            recovery_manifest: photoxfer_core::archive::latest_manifest(&folders.archive),
             folders,
             steps: Default::default(),
             receiver: None,
@@ -83,11 +92,16 @@ impl App {
             progress: 0.0,
             shown_progress: 0.0,
             saved: Vec::new(),
+            restore_receiver: None,
+            restore_running: false,
+            restore_progress: 0.0,
+            restore_result: None,
+            restore_error: None,
         }
     }
 
     fn start(&mut self) {
-        if self.running {
+        if self.running || self.restore_running {
             return;
         }
         self.steps = Default::default();
@@ -134,6 +148,8 @@ impl App {
                 Ok(Event::Finished) => {
                     self.finished = true;
                     self.running = false;
+                    self.recovery_manifest =
+                        photoxfer_core::archive::latest_manifest(&self.folders.archive);
                 }
                 Err(mpsc::TryRecvError::Empty) => break Some(receiver),
                 Err(mpsc::TryRecvError::Disconnected) => {
@@ -148,6 +164,150 @@ impl App {
                 }
             }
         };
+    }
+
+    fn poll_restore(&mut self) {
+        let Some(receiver) = self.restore_receiver.take() else {
+            return;
+        };
+        self.restore_receiver = loop {
+            match receiver.try_recv() {
+                Ok(RestoreEvent::Progress(done)) => self.restore_progress = done,
+                Ok(result) => {
+                    self.restore_result = Some(result);
+                    self.restore_running = false;
+                    self.close_blocked = false;
+                }
+                Err(mpsc::TryRecvError::Empty) => break Some(receiver),
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    if self.restore_running {
+                        self.restore_result = Some(RestoreEvent::Failed(
+                            "The restore check worker stopped unexpectedly. Keep your phone/iCloud copies and try again.".into(),
+                        ));
+                        self.restore_running = false;
+                        self.close_blocked = false;
+                    }
+                    break None;
+                }
+            }
+        };
+    }
+
+    fn start_restore(&mut self) {
+        if self.running || self.restore_running {
+            return;
+        }
+        #[cfg(windows)]
+        let chosen = picker::folder();
+        #[cfg(not(windows))]
+        let chosen: anyhow::Result<Option<PathBuf>> =
+            Err(anyhow::anyhow!("The folder picker requires Windows."));
+        let folder = match chosen {
+            Ok(Some(folder)) => folder,
+            Ok(None) => return,
+            Err(error) => {
+                self.restore_result = None;
+                self.restore_error =
+                    Some(format!("Could not choose a downloaded folder: {error:#}"));
+                return;
+            }
+        };
+        self.restore_result = None;
+        let onedrive = std::env::var_os("OneDrive").map(PathBuf::from);
+        self.restore_error =
+            backup::refuse_restore_folder(&folder, &self.folders, onedrive.as_deref());
+        if self.restore_error.is_some() {
+            return;
+        }
+        let Some(manifest) = photoxfer_core::archive::latest_manifest(&folder) else {
+            self.restore_error = Some("No recovery file list found. Download the manifests folder containing library-*.tsv along with the backup files.".into());
+            return;
+        };
+        self.restore_running = true;
+        self.restore_progress = 0.0;
+        self.close_blocked = false;
+        let (sender, receiver) = mpsc::channel();
+        self.restore_receiver = Some(receiver);
+        std::thread::spawn(move || {
+            backup::run_restore(&folder, &manifest, |event| {
+                let _ = sender.send(event);
+            });
+        });
+    }
+
+    fn restore_card(&mut self, ui: &mut egui::Ui) {
+        let list = self.recovery_manifest.as_ref().map_or_else(
+            || "Run a backup first".into(),
+            |path| {
+                format!(
+                    "Recovery file list to download: {}",
+                    path.file_name().unwrap_or_default().to_string_lossy()
+                )
+            },
+        );
+        ui.label(RichText::new(list).size(12.0).color(FAINT));
+        if ui
+            .add_enabled(
+                !self.running && !self.restore_running,
+                egui::Button::new("Check a downloaded folder…"),
+            )
+            .clicked()
+        {
+            self.start_restore();
+        }
+        if self.restore_running {
+            ui.add(egui::ProgressBar::new(self.restore_progress).show_percentage());
+            if self.close_blocked {
+                ui.label(
+                    RichText::new(
+                        "Still checking. Close the window after the restore check finishes.",
+                    )
+                    .size(12.5)
+                    .color(AMBER),
+                );
+            }
+        }
+        if let Some(error) = &self.restore_error {
+            ui.label(RichText::new(error).size(12.5).color(ERROR));
+        }
+        match &self.restore_result {
+            Some(RestoreEvent::Passed { files, manifest }) => {
+                banner(ui, SUCCESS, |ui| {
+                    ui.label(
+                        RichText::new(format!(
+                            "Cloud copy verified: all {files} files match {manifest}"
+                        ))
+                        .font(semibold(15.5))
+                        .color(SUCCESS),
+                    );
+                    ui.label(RichText::new("This proves recovery only if you downloaded this folder from the OneDrive website.").size(12.5).color(MUTED));
+                });
+            }
+            Some(RestoreEvent::Failed(error)) => {
+                banner(ui, ERROR, |ui| {
+                    ui.label(
+                        RichText::new("The downloaded copy doesn't match")
+                            .font(semibold(15.5))
+                            .color(ERROR),
+                    );
+                    egui::CollapsingHeader::new(
+                        RichText::new("Technical details").size(13.5).color(TEXT),
+                    )
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        egui::ScrollArea::vertical()
+                            .max_height(110.0)
+                            .show(ui, |ui| {
+                                ui.add(
+                                    egui::Label::new(RichText::new(error).monospace().color(MUTED))
+                                        .selectable(true),
+                                );
+                            });
+                    });
+                });
+            }
+            _ => {}
+        }
     }
 
     fn sidebar(&mut self, ui: &mut egui::Ui) {
@@ -383,7 +543,7 @@ impl App {
         }
     }
 
-    fn checklist(ui: &mut egui::Ui) {
+    fn checklist(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.label(eyebrow("BEFORE DELETING PHOTOS"));
             ui.label(
@@ -432,6 +592,9 @@ impl App {
                         // Columns justify text by default; keep it ragged-right.
                         ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
                             ui.label(RichText::new(detail).size(13.0).color(MUTED));
+                            if number == 2 {
+                                self.restore_card(ui);
+                            }
                         });
                     });
             }
@@ -536,8 +699,9 @@ fn show_in_folder(path: &std::path::Path) -> Result<(), String> {
 impl eframe::App for App {
     fn ui(&mut self, root: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.poll();
+        self.poll_restore();
         let ctx = root.ctx().clone();
-        if self.running {
+        if self.running || self.restore_running {
             let dt = ctx.input(|i| i.stable_dt).min(0.1);
             self.shown_progress +=
                 (self.progress - self.shown_progress) * (1.0 - (-dt * 6.0).exp());
@@ -576,7 +740,7 @@ impl eframe::App for App {
                         self.new_files(ui);
                     }
                     ui.add_space(18.0);
-                    Self::checklist(ui);
+                    self.checklist(ui);
                 });
             });
     }

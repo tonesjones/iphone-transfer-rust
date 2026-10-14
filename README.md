@@ -41,19 +41,20 @@ The second copy contains media files, database snapshots in `catalog-backups`, a
 
 1. Wait for OneDrive to report that the upload is complete.
 2. Open the archive on the OneDrive website.
-3. Download the latest recovery file list, every media file it lists, and its database snapshot into a separate folder outside OneDrive.
+3. Download the latest recovery file list, every media file it lists, and its database snapshot into a separate folder outside OneDrive. The app shows the name of the latest list under **Test a fresh cloud download**.
 4. Keep the downloaded files at the same paths relative to that folder.
-5. Verify the downloaded batch with the command below.
+5. In the app, select **Check a downloaded folder…**.
+6. In the folder picker, open your download folder and select **Select Folder**. Don't select a subfolder first, or the app checks that subfolder instead.
 
-Replace the example restore folder and manifest filename with your actual download location and recovery file list:
+Every listed media file and the database snapshot must pass. A copy made from the local OneDrive folder does not test cloud recovery, so the app refuses folders inside OneDrive, the saved library, or the second copy. If verification fails, keep your phone and iCloud copies and resolve the reported problem.
+
+To verify from PowerShell instead, replace the example restore folder and manifest filename with your download location and recovery file list:
 
 ```powershell
 $restore = 'C:\PhotoXfer-Restore'
 $manifest = Join-Path $restore 'manifests\library-TIMESTAMP.tsv'
 .\target\release\photoxfer.exe verify --from $restore --manifest $manifest
 ```
-
-Every listed media file and the database snapshot must pass. A copy made from the local OneDrive folder does not test cloud recovery. If verification fails, keep your phone and iCloud copies and resolve the reported problem.
 
 The app has no deletion command. Do not disable the whole iCloud library or empty **Recently Deleted** as part of this workflow.
 

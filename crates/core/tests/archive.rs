@@ -1,7 +1,7 @@
 #[allow(dead_code)]
 mod common;
 use photoxfer_core::{
-    archive::{archive, verify},
+    archive::{archive, latest_manifest, verify, verify_with_progress},
     db::Db,
     import::import_folder,
 };
@@ -30,6 +30,52 @@ fn archive_is_independent_repeatable_and_restorable() {
     assert!(archive(&library, &destination).is_err());
     fs::write(destination.join(relative), b"damaged archive").unwrap();
     assert!(verify(&destination, &first.manifest).is_err());
+}
+
+#[test]
+fn latest_manifest_returns_newest_matching_file() {
+    let temp = tempfile::tempdir().unwrap();
+    assert_eq!(latest_manifest(temp.path()), None);
+
+    let inbox = temp.path().join("inbox");
+    let library = temp.path().join("library");
+    let destination = temp.path().join("archive");
+    fs::create_dir(&inbox).unwrap();
+    fs::write(inbox.join("a.jpg"), common::jpeg_without_exif()).unwrap();
+    import_folder(&inbox, &library).unwrap();
+
+    let first = archive(&library, &destination).unwrap();
+    let second = archive(&library, &destination).unwrap();
+    assert_ne!(first.manifest, second.manifest);
+    let manifests = destination.join("manifests");
+    fs::write(manifests.join("notes.txt"), "ignored").unwrap();
+    fs::write(manifests.join("zzz.tsv"), "ignored").unwrap();
+    fs::create_dir(manifests.join("library-99999999T999999.999999999Z.tsv")).unwrap();
+
+    assert_eq!(
+        latest_manifest(&destination).unwrap().file_name(),
+        second.manifest.file_name()
+    );
+}
+
+#[test]
+fn verify_with_progress_is_monotonic_and_finishes_at_one() {
+    let temp = tempfile::tempdir().unwrap();
+    let inbox = temp.path().join("inbox");
+    let library = temp.path().join("library");
+    let destination = temp.path().join("archive");
+    fs::create_dir(&inbox).unwrap();
+    fs::write(inbox.join("a.jpg"), common::jpeg_without_exif()).unwrap();
+    import_folder(&inbox, &library).unwrap();
+    let report = archive(&library, &destination).unwrap();
+
+    let mut progress = Vec::new();
+    verify_with_progress(&destination, &report.manifest, &mut |value| {
+        progress.push(value)
+    })
+    .unwrap();
+    assert!(progress.windows(2).all(|pair| pair[0] <= pair[1]));
+    assert_eq!(progress.last(), Some(&1.0));
 }
 
 #[test]
