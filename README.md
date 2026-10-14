@@ -35,6 +35,12 @@ Compare your phone's photos and videos with the saved library. File counts can d
 
 For each Live Photo, confirm that both original components are saved. If either component is absent from the Windows folder, use an original export from Apple Photos and back up those files before deleting the phone copy.
 
+### Test the cloud copy automatically
+
+Click **Test the cloud copy** on the second-copy card, or run `photoxfer cloud-test --archive <Photo Backups folder> [--sample N]`. The app picks N files (default 25) from the newest recovery file list, always including the database snapshot, and makes them online-only. It waits until Windows reports their local bytes gone, then reads them back, which downloads them from OneDrive, and compares size and contents. Afterwards it restores each file's original pin state. It never deletes, moves, or writes file contents.
+
+A file that doesn't go online-only before the timeout fails and is named as not uploaded yet. A changed file fails and is named. The folder must be inside OneDrive. The test doesn't run alongside a backup or the downloaded-folder check. Real run on 2026-10-14: 26 files passed. The full manual download below is the deeper test.
+
 ### Verify a fresh cloud download
 
 The second copy contains media files, database snapshots in `catalog-backups`, and matching recovery file lists in `manifests`. Each `.tsv` recovery file list records the contents expected in that backup batch.

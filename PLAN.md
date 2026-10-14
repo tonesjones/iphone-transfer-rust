@@ -198,7 +198,7 @@ Claude reviews every diff, runs the tests, and owns this file and the README. No
   `YYYY/<Month>/YYYY-MM-DD_estimated_<short6>.ext`, recording `date_basis`. Accept: preview
   writes nothing; 2 of 3 filled rows move exactly 2; `check` is clean and hashes are unchanged.
 - [ ] I5 = R10 dependency audit. Waiting on your OK to install `cargo-audit`.
-- [ ] I6 Automatic cloud test (`claude/cloud-test`). Card 2 gets **Test the cloud copy**, and the
+- [x] I6 (real run 2026-10-14: 26 files passed, pin states unchanged) Automatic cloud test (`claude/cloud-test`). Card 2 gets **Test the cloud copy**, and the
   CLI gets `photoxfer cloud-test --archive <dir> [--sample N]`. It samples N files (default 25)
   from the newest manifest, always including the catalog snapshot, and makes them online-only. It
   waits until Windows reports their local bytes gone, then reads them back, which downloads them
